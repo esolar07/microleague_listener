@@ -1,35 +1,41 @@
-import { DB_COLLECTIONS } from 'src/constants/collections';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { BankTransfer, BankTransferDocument, BankTransferStatus } from './entities/bank-transfer.entity';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { BankTransfer, BankTransferStatus } from '@prisma/client';
 import { CreateBankTransferDto } from './dto/create-bank-transfer.dto';
 import { UpdateBankTransferDto } from './dto/update-bank-transfer.dto';
 import { VerifyBankTransferDto } from './dto/verify-bank-transfer.dto';
 import { FilterBankTransfersDto } from './dto/filter-bank-transfers.dto';
-import { paginate } from '../../utils/pagination.util';
 
 @Injectable()
 export class BankTransfersService {
-  constructor(
-    @InjectModel(DB_COLLECTIONS.BANK_TRANSFER) private bankTransferModel: Model<BankTransferDocument>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(createBankTransferDto: CreateBankTransferDto): Promise<BankTransfer> {
     // Generate unique ID in BT-YYYY-XXX format
     const year = new Date().getFullYear();
-    const count = await this.bankTransferModel.countDocuments({
-      id: new RegExp(`BT-${year}-`)
+    const count = await this.prisma.bankTransfer.count({
+      where: {
+        transferId: {
+          startsWith: `BT-${year}-`
+        }
+      }
     });
-    const id = `BT-${year}-${String(count + 1).padStart(3, '0')}`;
+    const transferId = `BT-${year}-${String(count + 1).padStart(3, '0')}`;
 
-    const createdTransfer = new this.bankTransferModel({
-      ...createBankTransferDto,
-      id,
-      submittedDate: new Date(createBankTransferDto.submittedDate),
+    return this.prisma.bankTransfer.create({
+      data: {
+        transferId,
+        walletAddress: createBankTransferDto.walletAddress,
+        amount: createBankTransferDto.amount,
+        senderName: createBankTransferDto.senderName,
+        bankName: createBankTransferDto.bankName,
+        transactionRef: createBankTransferDto.transactionRef,
+        paymentRef: createBankTransferDto.paymentRef,
+        submittedDate: new Date(createBankTransferDto.submittedDate),
+        proofUrl: createBankTransferDto.proofUrl,
+        notes: createBankTransferDto.notes || '',
+      },
     });
-    
-    return createdTransfer.save();
   }
 
   async findAll(filters: FilterBankTransfersDto): Promise<{
@@ -42,75 +48,78 @@ export class BankTransfersService {
     };
     stats: any;
   }> {
-    const { search, status, ...paginationDto } = filters;
-    const query: any = {};
+    const search = filters.search;
+    const status = filters.status;
+    const page = filters.page || 1;
+    const limit = filters.limit || 10;
+    const where: any = {};
 
     // Search filter
     if (search) {
-      query.$or = [
-        { id: { $regex: search, $options: 'i' } },
-        { walletAddress: { $regex: search, $options: 'i' } },
-        { transactionRef: { $regex: search, $options: 'i' } },
-        { paymentRef: { $regex: search, $options: 'i' } },
-        { senderName: { $regex: search, $options: 'i' } },
+      where.OR = [
+        { transferId: { contains: search, mode: 'insensitive' } },
+        { walletAddress: { contains: search, mode: 'insensitive' } },
+        { transactionRef: { contains: search, mode: 'insensitive' } },
+        { paymentRef: { contains: search, mode: 'insensitive' } },
+        { senderName: { contains: search, mode: 'insensitive' } },
       ];
     }
 
     // Status filter
-    if (status && status !== BankTransferStatus.ALL) { 
-      query.status = status;
+    if (status && status !== 'All') {
+      where.status = status as BankTransferStatus;
     }
 
-    // Set default sort if not provided
-    if (!paginationDto.sort) {
-      paginationDto.sort = { submittedDate: -1 };
-    }
+    const [data, totalCount] = await Promise.all([
+      this.prisma.bankTransfer.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { submittedDate: 'desc' },
+      }),
+      this.prisma.bankTransfer.count({ where }),
+    ]);
 
-    // Use your existing paginate utility
-    const paginationResult = await paginate(
-      this.bankTransferModel,
-      query,
-      paginationDto,
-      [] // No populate fields needed
-    );
-
-    // Get stats using the public method
     const stats = await this.getStats();
 
     return {
-      data: paginationResult.data,
+      data,
       pagination: {
-        totalCount: paginationResult.totalCount,
-        totalPages: paginationResult.totalPages,
-        page: paginationResult.page,
-        limit: paginationResult.limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        page,
+        limit,
       },
       stats,
     };
   }
 
-  async findOne(id: string): Promise<BankTransfer> {
-    const transfer = await this.bankTransferModel.findOne({ id }).exec();
+  async findOne(transferId: string): Promise<BankTransfer> {
+    const transfer = await this.prisma.bankTransfer.findUnique({
+      where: { transferId },
+    });
+    
     if (!transfer) {
-      throw new NotFoundException(`Bank transfer with ID ${id} not found`);
+      throw new NotFoundException(`Bank transfer with ID ${transferId} not found`);
     }
+    
     return transfer;
   }
 
-  async update(id: string, updateBankTransferDto: UpdateBankTransferDto): Promise<BankTransfer> {
-    const existingTransfer = await this.bankTransferModel
-      .findOneAndUpdate({ id }, updateBankTransferDto, { new: true })
-      .exec();
-    
-    if (!existingTransfer) {
-      throw new NotFoundException(`Bank transfer with ID ${id} not found`);
+  async update(transferId: string, updateBankTransferDto: UpdateBankTransferDto): Promise<BankTransfer> {
+    try {
+      const updateData: any = { ...updateBankTransferDto };
+      return await this.prisma.bankTransfer.update({
+        where: { transferId },
+        data: updateData,
+      });
+    } catch (error) {
+      throw new NotFoundException(`Bank transfer with ID ${transferId} not found`);
     }
-    
-    return existingTransfer;
   }
 
   async verify(
-    id: string, 
+    transferId: string, 
     verifyBankTransferDto: VerifyBankTransferDto, 
     adminId: string
   ): Promise<BankTransfer> {
@@ -119,52 +128,49 @@ export class BankTransfersService {
       verificationNote: verifyBankTransferDto.verificationNote,
     };
 
-    if (verifyBankTransferDto.status === BankTransferStatus.VERIFIED) {
+    if (verifyBankTransferDto.status === BankTransferStatus.Verified) {
       updateData.verifiedBy = adminId;
       updateData.verifiedAt = new Date();
-    } else if (verifyBankTransferDto.status === BankTransferStatus.REJECTED) {
+    } else if (verifyBankTransferDto.status === BankTransferStatus.Rejected) {
       updateData.rejectedBy = adminId;
       updateData.rejectedAt = new Date();
     }
 
-    const updatedTransfer = await this.bankTransferModel
-      .findOneAndUpdate({ id }, updateData, { new: true })
-      .exec();
-
-    if (!updatedTransfer) {
-      throw new NotFoundException(`Bank transfer with ID ${id} not found`);
-    }
-
-    return updatedTransfer;
-  }
-
-  async remove(id: string): Promise<void> {
-    const result = await this.bankTransferModel.deleteOne({ id }).exec();
-    if (result.deletedCount === 0) {
-      throw new NotFoundException(`Bank transfer with ID ${id} not found`);
+    try {
+      return await this.prisma.bankTransfer.update({
+        where: { transferId },
+        data: updateData,
+      });
+    } catch (error) {
+      throw new NotFoundException(`Bank transfer with ID ${transferId} not found`);
     }
   }
 
-  // Make this method public so it can be used by the controller
+  async remove(transferId: string): Promise<void> {
+    try {
+      await this.prisma.bankTransfer.delete({
+        where: { transferId },
+      });
+    } catch (error) {
+      throw new NotFoundException(`Bank transfer with ID ${transferId} not found`);
+    }
+  }
+
   async getStats(): Promise<any> {
-    const stats = await this.bankTransferModel.aggregate([
-      {
-        $group: {
-          _id: null,
-          pending: {
-            $sum: { $cond: [{ $eq: ['$status', BankTransferStatus.PENDING] }, 1, 0] }
-          },
-          verified: {
-            $sum: { $cond: [{ $eq: ['$status', BankTransferStatus.VERIFIED] }, 1, 0] }
-          },
-          rejected: {
-            $sum: { $cond: [{ $eq: ['$status', BankTransferStatus.REJECTED] }, 1, 0] }
-          },
-          totalAmount: { $sum: '$amount' },
-        }
-      }
+    const [pending, verified, rejected, totalAmount] = await Promise.all([
+      this.prisma.bankTransfer.count({ where: { status: BankTransferStatus.Pending } }),
+      this.prisma.bankTransfer.count({ where: { status: BankTransferStatus.Verified } }),
+      this.prisma.bankTransfer.count({ where: { status: BankTransferStatus.Rejected } }),
+      this.prisma.bankTransfer.aggregate({
+        _sum: { amount: true },
+      }),
     ]);
 
-    return stats[0] || { pending: 0, verified: 0, rejected: 0, totalAmount: 0 };
+    return {
+      pending,
+      verified,
+      rejected,
+      totalAmount: totalAmount._sum.amount || 0,
+    };
   }
 }

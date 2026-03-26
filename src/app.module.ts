@@ -1,23 +1,19 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
-import { CommonModule } from './modules/common/modules/common.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { BankTransfersModule } from './modules/bank-transfers/bank-transfers.module';
 import { AppController } from './app.controller';
 import { ConfigModule } from '@nestjs/config';
 import { AppService } from './app.service';
-import { AdminModule } from './modules/admin/admin.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
-import { ClaimsModule } from './modules/claims/claims.module';
-import { EmailModule } from './modules/email/email.module';
-import { PurchaseModule } from './modules/purchase/purchase.module';
-import { TypeformModule } from './modules/typeform/typeform.module';
-import { BankTransfersModule } from './modules/bank-transfers/bank-transfers.module';
-import { BankTransfersService } from './modules/bank-transfers/bank-transfers.service';
 import { ListenerModule } from './modules/listener/listener.module';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { TransportOptions } from 'nodemailer';
+import { PrismaModule } from './prisma/prisma.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -47,20 +43,17 @@ import { TransportOptions } from 'nodemailer';
         },
       },
     }),
-    CommonModule,
+    PrismaModule,
+    HealthModule,
     AuthModule,
     UserModule,
     AdminModule,
-    TransactionsModule,
-    ClaimsModule,
-    ListenerModule,
-    EmailModule,
-    PurchaseModule,
-    TypeformModule,
     BankTransfersModule,
+    TransactionsModule,
+    ListenerModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
-  providers: [AppService, BankTransfersService],
+  providers: [AppService],
 })
 export class AppModule { }

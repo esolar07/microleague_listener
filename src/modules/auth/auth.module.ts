@@ -5,11 +5,9 @@ import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { JwtModule, JwtService } from "@nestjs/jwt";
 import { jwtConstants } from "src/constants/jwt.constant";
-import { CommonModule } from "../common/modules/common.module";
-import { AdminService } from "../admin/admin.service";
+
 @Module({
   imports: [
-    CommonModule,
     JwtModule.register({
       // secret: jwtConstants.secret,
       signOptions: { expiresIn: jwtConstants.expire },
@@ -24,8 +22,7 @@ import { AdminService } from "../admin/admin.service";
     UserService,
     AuthService,
     JwtService,
-    AdminService,
   ],
-  exports: [AuthService, JwtService, UserService, AdminService],
+  exports: [AuthService, JwtService, UserService],
 })
 export class AuthModule {}

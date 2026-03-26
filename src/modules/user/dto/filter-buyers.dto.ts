@@ -1,10 +1,9 @@
 import { IsOptional, IsString, IsEnum, IsNumber, Min, Max } from 'class-validator';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { BuyerStatus } from '../entities/user.entity';
+import { BuyerStatus } from '@prisma/client';
 
-export class FilterBuyersDto extends PaginationDto {
+export class FilterBuyersDto {
   @ApiPropertyOptional({ example: '0x742d35f8a9b3c4e1d2f6a8e7c9b5d4a3f2e1d0c9' })
   @IsOptional()
   @IsString()
@@ -29,4 +28,8 @@ export class FilterBuyersDto extends PaginationDto {
   @Min(1)
   @Max(100)
   limit?: number = 10;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  sort?: any;
 }

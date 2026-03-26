@@ -1,31 +1,18 @@
 // handlers/presale-buy.handler.ts
 import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { formatEther, JsonRpcProvider, parseEther, parseUnits } from "ethers";
+import { formatEther, JsonRpcProvider } from "ethers";
 
 import { BaseEventHandler } from "./base-event.handler";
 import { ContractEventConfig } from "../config/listener.config";
-import { DB_COLLECTIONS } from "src/constants/collections";
-import { StateDocument } from "../entity/listener.state.entity";
-import {
-  PresaleTxs,
-  PresaleTxsDocument,
-  PresaleTxType,
-} from "src/modules/transactions/entities/presale.entity";
-import { User } from "src/modules/user/entities/user.entity";
+import { PrismaService } from "src/prisma/prisma.service";
+import { PresaleTxType } from "@prisma/client";
 
 @Injectable()
 export class PresaleBuyHandler extends BaseEventHandler {
   constructor(
-    @InjectModel(DB_COLLECTIONS.STATE)
-    stateModel: Model<StateDocument>,
-    @InjectModel(DB_COLLECTIONS.PRE_SALES_TXS)
-    private readonly presaleTxsModel: Model<PresaleTxsDocument>,
-    @InjectModel(DB_COLLECTIONS.USERS)
-    private readonly userModel: Model<User>
+    protected readonly prisma: PrismaService
   ) {
-    super(stateModel);
+    super(prisma);
   }
 
   getEventName(): string {
@@ -66,8 +53,7 @@ export class PresaleBuyHandler extends BaseEventHandler {
         event.index
       );
 
-      // Persist presale transaction
-
+      // Convert wei to readable format
       const weiToEth4 = (wei: bigint | string) =>
         Number(Number(formatEther(wei)).toFixed(6));
 
@@ -79,45 +65,56 @@ export class PresaleBuyHandler extends BaseEventHandler {
       console.log(amount);
       console.log(usdAmount);
 
-      const doc: Partial<PresaleTxs> = {
-        txHash: event.transactionHash,
-        contract: contractConfig.contractAddress.toLowerCase(),
-        address: buyer.toLowerCase(),
-        tokenAddress: contractConfig.contractAddress.toLowerCase(),
-        type: PresaleTxType.BUY,
-        amount,
-        stage: Number(stageId) || 0,
-        tokens,
-        timestamp,
-        usdAmount,
-        quote: paymentToken,
-      };
-
-      await this.presaleTxsModel.findOneAndUpdate(
-        { txHash: event.transactionHash },
-        doc,
-        { upsert: true, new: true }
-      );
-
-      // Upsert/update buyer aggregate
+      // First, ensure user exists (create/update buyer aggregate)
       const now = new Date();
-      await this.userModel.findOneAndUpdate(
-        { walletAddress: buyer.toLowerCase() },
-        {
-          $setOnInsert: {
-            joinDate: now,
-          },
-          $inc: {
-            tokensPurchased: tokens,
-            amountSpent: usdAmount,
-            unclaimed: tokens, // assuming all new tokens start as unclaimed
-          },
-          $set: {
-            lastActivity: now,
-          },
+      await this.prisma.user.upsert({
+        where: { walletAddress: buyer.toLowerCase() },
+        update: {
+          tokensPurchased: { increment: tokens },
+          amountSpent: { increment: usdAmount },
+          unclaimed: { increment: tokens },
+          lastActivity: now,
         },
-        { upsert: true, new: true }
-      );
+        create: {
+          userId: buyer.toLowerCase(), // Using wallet address as userId for now
+          walletAddress: buyer.toLowerCase(),
+          joinDate: now,
+          tokensPurchased: tokens,
+          amountSpent: usdAmount,
+          unclaimed: tokens,
+          lastActivity: now,
+        },
+      });
+
+      // Then, persist presale transaction (now that user exists)
+      await this.prisma.presaleTxs.upsert({
+        where: { txHash: event.transactionHash },
+        update: {
+          contract: contractConfig.contractAddress.toLowerCase(),
+          address: buyer.toLowerCase(),
+          tokenAddress: contractConfig.contractAddress.toLowerCase(),
+          type: PresaleTxType.Buy,
+          amount,
+          stage: Number(stageId) || 0,
+          tokens,
+          timestamp,
+          usdAmount,
+          quote: paymentToken,
+        },
+        create: {
+          txHash: event.transactionHash,
+          contract: contractConfig.contractAddress.toLowerCase(),
+          address: buyer.toLowerCase(),
+          tokenAddress: contractConfig.contractAddress.toLowerCase(),
+          type: PresaleTxType.Buy,
+          amount,
+          stage: Number(stageId) || 0,
+          tokens,
+          timestamp,
+          usdAmount,
+          quote: paymentToken,
+        },
+      });
 
       this.logger.log(
         `Presale Bought processed: buyer=${buyer}, tokenAmount=${tokenAmount.toString?.() ?? tokenAmount}, paymentAmount=${paymentAmount.toString?.() ?? paymentAmount}`

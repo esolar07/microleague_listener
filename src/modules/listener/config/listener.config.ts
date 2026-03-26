@@ -26,8 +26,8 @@ export const LISTENER_CONFIG: ContractEventConfig[] = [
     contractName: 'PRESALE_CONTRACT',
     abi: PRESALE_ABI,
     network: 'ethereum',
-    enabled: false,
-    startBlock: 9675395, //9616518,
+    enabled: true,
+    startBlock: 9822755, //9616518,
     events: [
       {
         eventName: 'Bought',

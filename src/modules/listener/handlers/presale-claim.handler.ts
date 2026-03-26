@@ -1,30 +1,18 @@
+// handlers/presale-claim.handler.ts
 import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
 import { formatEther, JsonRpcProvider } from "ethers";
 
 import { BaseEventHandler } from "./base-event.handler";
 import { ContractEventConfig } from "../config/listener.config";
-import { DB_COLLECTIONS } from "src/constants/collections";
-import { StateDocument } from "../entity/listener.state.entity";
-import {
-  PresaleTxs,
-  PresaleTxsDocument,
-  PresaleTxType,
-} from "src/modules/transactions/entities/presale.entity";
-import { User } from "src/modules/user/entities/user.entity";
+import { PrismaService } from "src/prisma/prisma.service";
+import { PresaleTxType } from "@prisma/client";
 
 @Injectable()
 export class PresaleClaimHandler extends BaseEventHandler {
   constructor(
-    @InjectModel(DB_COLLECTIONS.STATE)
-    stateModel: Model<StateDocument>,
-    @InjectModel(DB_COLLECTIONS.PRE_SALES_TXS)
-    private readonly presaleTxsModel: Model<PresaleTxsDocument>,
-    @InjectModel(DB_COLLECTIONS.USERS)
-    private readonly userModel: Model<User>
+    protected readonly prisma: PrismaService
   ) {
-    super(stateModel);
+    super(prisma);
   }
 
   getEventName(): string {
@@ -47,9 +35,13 @@ export class PresaleClaimHandler extends BaseEventHandler {
       const block = await provider.getBlock(event.blockNumber);
       const timestamp = block.timestamp;
 
-      const { buyer, amount, schedulesClaimed } = event.args;
+      const {
+        buyer,
+        amount,
+        schedulesClaimed,
+      } = event.args;
 
-      // Save listener state (idempotency)
+      // Save listener state
       await this.saveProcessingState(
         contractConfig.contractAddress,
         this.getEventName(),
@@ -58,50 +50,47 @@ export class PresaleClaimHandler extends BaseEventHandler {
         event.index
       );
 
+      // Convert wei to readable format
       const weiToEth4 = (wei: bigint | string) =>
         Number(Number(formatEther(wei)).toFixed(6));
 
-      const tokensClaimed = weiToEth4(amount);
-      const schedules = Number(schedulesClaimed) || 0;
+      const tokens = weiToEth4(amount);
 
-      const doc: Partial<PresaleTxs> = {
-        txHash: event.transactionHash,
-        contract: contractConfig.contractAddress.toLowerCase(),
-        address: buyer.toLowerCase(),
-        tokenAddress: contractConfig.contractAddress.toLowerCase(),
-        type: PresaleTxType.CLAIM,
-        amount: 0, // claim has no payment amount
-        stage: schedules, // store schedules claimed in stage field for reference
-        tokens: tokensClaimed,
-        timestamp,
-        usdAmount: 0,
-        quote: "",
-      };
+      console.log(`Claim processed: buyer=${buyer}, amount=${tokens}, schedules=${schedulesClaimed}`);
 
-      await this.presaleTxsModel.findOneAndUpdate(
-        { txHash: event.transactionHash },
-        doc,
-        { upsert: true, new: true }
-      );
-
-      // Update buyer aggregates: move tokens from unclaimed to claimed
-      const now = new Date();
-      await this.userModel.findOneAndUpdate(
-        { walletAddress: buyer.toLowerCase() },
-        {
-          $setOnInsert: {
-            joinDate: now,
-          },
-          $inc: {
-            claimed: tokensClaimed,
-            unclaimed: -tokensClaimed,
-          },
-          $set: {
-            lastActivity: now,
-          },
+      // First, ensure user exists (update buyer aggregate - move tokens from unclaimed to claimed)
+      await this.prisma.user.upsert({
+        where: { walletAddress: buyer.toLowerCase() },
+        update: {
+          claimed: { increment: tokens },
+          unclaimed: { decrement: tokens },
+          lastActivity: new Date(),
         },
-        { upsert: true, new: true }
-      );
+        create: {
+          userId: buyer.toLowerCase(), // Using wallet address as userId for now
+          walletAddress: buyer.toLowerCase(),
+          joinDate: new Date(),
+          claimed: tokens,
+          lastActivity: new Date(),
+        },
+      });
+
+      // Then, persist presale claim transaction (now that user exists)
+      await this.prisma.presaleTxs.create({
+        data: {
+          txHash: event.transactionHash,
+          contract: contractConfig.contractAddress.toLowerCase(),
+          address: buyer.toLowerCase(),
+          tokenAddress: contractConfig.contractAddress.toLowerCase(),
+          type: PresaleTxType.Claim,
+          amount: 0, // No payment amount for claims
+          stage: 0, // No stage for claims
+          tokens,
+          timestamp,
+          usdAmount: 0, // No USD value for claims
+          quote: "CLAIM", // Indicate this is a claim transaction
+        },
+      });
 
       this.logger.log(
         `Presale Claimed processed: buyer=${buyer}, amount=${amount.toString?.() ?? amount}, schedulesClaimed=${schedulesClaimed.toString?.() ?? schedulesClaimed}`
@@ -112,4 +101,3 @@ export class PresaleClaimHandler extends BaseEventHandler {
     }
   }
 }
-

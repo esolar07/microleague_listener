@@ -1,9 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model, PipelineStage } from "mongoose";
-import { DB_COLLECTIONS } from "src/constants/collections";
-import { PresaleTxsDocument } from "./entities/presale.entity";
-import { TypeformDocument } from "../typeform/entities/typeform.entity";
+import { PrismaService } from "src/prisma/prisma.service";
+import { PresaleTxs, PresaleTxType } from "@prisma/client";
 import { 
   TransactionsResponseDto, 
   TransactionDto,
@@ -15,10 +12,7 @@ import {
 @Injectable()
 export class TransactionsService {
   constructor(
-    @InjectModel(DB_COLLECTIONS.PRE_SALES_TXS)
-    public presaleTxsModel: Model<PresaleTxsDocument>,
-    @InjectModel(DB_COLLECTIONS.TYPEFORM)
-    private readonly typeformModel: Model<TypeformDocument>
+    private readonly prisma: PrismaService,
   ) {}
 
   async findAll(query: TransactionsQueryDto): Promise<TransactionsResponseDto> {
@@ -39,88 +33,69 @@ export class TransactionsService {
       sortOrder = 'desc'
     } = query;
 
-    const matchStage: any = {};
+    const where: any = {};
     const skip = (page - 1) * limit;
 
-    // Build match stage based on query parameters
-    if (address) matchStage.address = { $regex: address, $options: "i" };
-    if (contract) matchStage.contract = { $regex: contract, $options: "i" };
-    if (tokenAddress) matchStage.tokenAddress = { $regex: tokenAddress, $options: "i" };
-    if (type) matchStage.type = type;
-    if (stage !== undefined) matchStage.stage = stage;
+    // Build where clause based on query parameters
+    if (address) where.address = { contains: address, mode: 'insensitive' };
+    if (contract) where.contract = { contains: contract, mode: 'insensitive' };
+    if (tokenAddress) where.tokenAddress = { contains: tokenAddress, mode: 'insensitive' };
+    if (type) where.type = type;
+    if (stage !== undefined) where.stage = stage;
     
-    // Date range filter
+    // Date range filter (convert to timestamp)
     if (startDate || endDate) {
-      matchStage.timestamp = {};
-      if (startDate) matchStage.timestamp.$gte = Math.floor(new Date(startDate).getTime() / 1000);
-      if (endDate) matchStage.timestamp.$lte = Math.floor(new Date(endDate).getTime() / 1000);
+      where.timestamp = {};
+      if (startDate) where.timestamp.gte = Math.floor(new Date(startDate).getTime() / 1000);
+      if (endDate) where.timestamp.lte = Math.floor(new Date(endDate).getTime() / 1000);
     }
     
     // Amount range filter
     if (minAmount !== undefined || maxAmount !== undefined) {
-      matchStage.amount = {};
-      if (minAmount !== undefined) matchStage.amount.$gte = minAmount;
-      if (maxAmount !== undefined) matchStage.amount.$lte = maxAmount;
+      where.amount = {};
+      if (minAmount !== undefined) where.amount.gte = minAmount;
+      if (maxAmount !== undefined) where.amount.lte = maxAmount;
     }
     
     // Search across multiple fields
     if (search) {
-      matchStage.$or = [
-        { txHash: { $regex: search, $options: "i" } },
-        { address: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
+      where.OR = [
+        { txHash: { contains: search, mode: 'insensitive' } },
+        { address: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
       ];
     }
 
-    const sortStage: any = {};
-    sortStage[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    const orderBy: any = {};
+    orderBy[sortBy] = sortOrder;
 
-    const pipeline: PipelineStage[] = [
-      { $match: matchStage },
-      {
-        $lookup: {
-          from: "users",
-          localField: "address",
-          foreignField: "walletAddress",
-          as: "userInfo",
+    const [data, total] = await Promise.all([
+      this.prisma.presaleTxs.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+            }
+          }
         },
-      },
-      {
-        $unwind: {
-          path: "$userInfo",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $project: {
-          txHash: 1,
-          contract: 1,
-          address: 1,
-          tokenAddress: 1,
-          type: 1,
-          amount: 1,
-          stage: 1,
-          tokens: 1,
-          timestamp: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          usdAmount: 1,
-          quote: 1,
-          email: {
-            $ifNull: ["$email", "$userInfo.email"],
-          },
-        },
-      },
-      { $sort: sortStage },
-      { $skip: skip },
-      { $limit: limit },
-    ];
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      this.prisma.presaleTxs.count({ where }),
+    ]);
 
-    const data = await this.presaleTxsModel.aggregate(pipeline);
-    const total = await this.presaleTxsModel.countDocuments(matchStage);
+    // Transform data to match expected format
+    const transformedData = data.map(tx => ({
+      ...tx,
+      email: tx.email || tx.user?.email || null,
+    }));
 
     return {
-      data,
+      data: transformedData,
       total,
       page,
       limit,
@@ -129,167 +104,172 @@ export class TransactionsService {
   }
 
   async findByTxHash(txHash: string): Promise<{ data: TransactionDto }> {
-    const transaction = await this.presaleTxsModel.findOne({ txHash });
+    const transaction = await this.prisma.presaleTxs.findUnique({
+      where: { txHash },
+      include: {
+        user: {
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+          }
+        }
+      }
+    });
     
     if (!transaction) {
       throw new NotFoundException(`Transaction with hash ${txHash} not found`);
     }
 
-    // Lookup user email if available
-    const pipeline: PipelineStage[] = [
-      { $match: { txHash } },
-      {
-        $lookup: {
-          from: "users",
-          localField: "address",
-          foreignField: "walletAddress",
-          as: "userInfo",
-        },
-      },
-      {
-        $unwind: {
-          path: "$userInfo",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $project: {
-          txHash: 1,
-          contract: 1,
-          address: 1,
-          tokenAddress: 1,
-          type: 1,
-          amount: 1,
-          stage: 1,
-          tokens: 1,
-          timestamp: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          usdAmount: 1,
-          quote: 1,
-          typeformId: 1,
-          email: {
-            $ifNull: ["$email", "$userInfo.email"],
-          },
-        },
-      },
-    ];
-
-    const [result] = await this.presaleTxsModel.aggregate(pipeline);
-    
-    if (!result) {
-      throw new NotFoundException(`Transaction with hash ${txHash} not found`);
-    }
+    const result = {
+      ...transaction,
+      email: transaction.email || transaction.user?.email || null,
+    };
 
     return { data: result };
   }
+
   async getTransactionStats(): Promise<TransactionStatsDto> {
     // Get total transactions count
-    const totalTransactions = await this.presaleTxsModel.countDocuments();
+    const totalTransactions = await this.prisma.presaleTxs.count();
 
-    // Get total tokens sold
-    const tokensResult = await this.presaleTxsModel.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalTokensSold: { $sum: "$tokens" },
-          totalAmount: { $sum: "$amount" },
-          totalUsdAmount: { $sum: "$usdAmount" },
-          averageTransactionSize: { $avg: "$usdAmount" },
-          largestTransaction: { $max: "$usdAmount" },
-        },
+    // Get aggregated stats
+    const aggregates = await this.prisma.presaleTxs.aggregate({
+      _sum: {
+        tokens: true,
+        amount: true,
+        usdAmount: true,
       },
-    ]);
+      _avg: {
+        usdAmount: true,
+      },
+      _max: {
+        usdAmount: true,
+      },
+    });
 
     // Get transactions by type
-    const byTypeResult = await this.presaleTxsModel.aggregate([
-      {
-        $group: {
-          _id: "$type",
-          count: { $sum: 1 },
-        },
+    const byType = await this.prisma.presaleTxs.groupBy({
+      by: ['type'],
+      _count: {
+        type: true,
       },
-    ]);
+    });
 
     const transactionsByType: Record<string, number> = {};
-    byTypeResult.forEach(item => {
-      transactionsByType[item._id] = item.count;
+    byType.forEach(item => {
+      transactionsByType[item.type] = item._count.type;
     });
 
     // Get transactions by stage
-    const byStageResult = await this.presaleTxsModel.aggregate([
-      {
-        $group: {
-          _id: "$stage",
-          count: { $sum: 1 },
-        },
+    const byStage = await this.prisma.presaleTxs.groupBy({
+      by: ['stage'],
+      _count: {
+        stage: true,
       },
-    ]);
+    });
 
     const transactionsByStage: Record<number, number> = {};
-    byStageResult.forEach(item => {
-      transactionsByStage[item._id] = item.count;
+    byStage.forEach(item => {
+      transactionsByStage[item.stage] = item._count.stage;
     });
 
     // Get daily transactions for last 30 days
     const thirtyDaysAgo = Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60);
     
-    const dailyTransactions = await this.presaleTxsModel.aggregate([
-      {
-        $match: {
-          timestamp: { $gte: thirtyDaysAgo }
-        }
+    const dailyTxs = await this.prisma.presaleTxs.findMany({
+      where: {
+        timestamp: { gte: thirtyDaysAgo }
       },
-      {
-        $group: {
-          _id: {
-            $dateToString: { 
-              format: "%Y-%m-%d", 
-              date: { $toDate: { $multiply: ["$timestamp", 1000] } } 
-            }
-          },
-          count: { $sum: 1 },
-          volume: { $sum: "$usdAmount" }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
+      select: {
+        timestamp: true,
+        usdAmount: true,
+      }
+    });
 
-    const statsResult = tokensResult[0] || {
-      totalTokensSold: 0,
-      totalAmount: 0,
-      totalUsdAmount: 0,
-      averageTransactionSize: 0,
-      largestTransaction: 0,
-    };
+    // Group by date
+    const dailyMap = new Map<string, { count: number; volume: number }>();
+    dailyTxs.forEach(tx => {
+      const date = new Date(tx.timestamp * 1000).toISOString().split('T')[0];
+      const existing = dailyMap.get(date) || { count: 0, volume: 0 };
+      dailyMap.set(date, {
+        count: existing.count + 1,
+        volume: existing.volume + tx.usdAmount,
+      });
+    });
+
+    const dailyTransactions = Array.from(dailyMap.entries())
+      .map(([date, stats]) => ({
+        date,
+        count: stats.count,
+        volume: stats.volume,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     return {
       totalTransactions,
-      totalTokensSold: statsResult.totalTokensSold,
-      totalAmount: statsResult.totalAmount,
-      totalUsdAmount: statsResult.totalUsdAmount,
-      averageTransactionSize: statsResult.averageTransactionSize,
-      largestTransaction: statsResult.largestTransaction,
+      totalTokensSold: aggregates._sum.tokens || 0,
+      totalAmount: aggregates._sum.amount || 0,
+      totalUsdAmount: aggregates._sum.usdAmount || 0,
+      averageTransactionSize: aggregates._avg.usdAmount || 0,
+      largestTransaction: aggregates._max.usdAmount || 0,
       transactionsByType,
       transactionsByStage,
-      dailyTransactions: dailyTransactions.map(item => ({
-        date: item._id,
-        count: item.count,
-        volume: item.volume
-      }))
+      dailyTransactions,
     };
   }
 
   async deleteTransaction(txHash: string): Promise<{ success: boolean; message: string }> {
-    const result = await this.presaleTxsModel.deleteOne({ txHash });
-    
-    if (result.deletedCount === 0) {
+    try {
+      await this.prisma.presaleTxs.delete({
+        where: { txHash }
+      });
+
+      return {
+        success: true,
+        message: `Transaction ${txHash} deleted successfully`
+      };
+    } catch (error) {
       throw new NotFoundException(`Transaction with hash ${txHash} not found`);
+    }
+  }
+
+  async getUserTokens(identifier: string): Promise<{ identifier: string; totalTokens: number }> {
+    // The identifier could be a wallet address or user ID
+    // First try to find by wallet address, then by user ID
+    let totalTokens = 0;
+
+    // Try to find user by wallet address first
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { walletAddress: identifier.toLowerCase() },
+          { id: identifier },
+          { userId: identifier },
+        ]
+      }
+    });
+
+    if (user) {
+      // Get total tokens from user record
+      totalTokens = user.tokensPurchased || 0;
+    } else {
+      // Fallback: calculate from transactions directly
+      const result = await this.prisma.presaleTxs.aggregate({
+        where: {
+          address: identifier.toLowerCase(),
+        },
+        _sum: {
+          tokens: true,
+        },
+      });
+      
+      totalTokens = result._sum.tokens || 0;
     }
 
     return {
-      success: true,
-      message: `Transaction ${txHash} deleted successfully`
+      identifier,
+      totalTokens,
     };
   }
 }

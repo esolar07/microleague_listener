@@ -5,15 +5,11 @@ import {
   OnModuleInit,
   OnModuleDestroy,
 } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
 import { ContractManagerService } from "./services/contract-manager.service";
 import { HandlerRegistryService } from "./services/handler-registry.service";
 import { ProviderService } from "./services/provider-pool.service";
-import { LISTENER_CONFIG, ContractEventConfig } from "./config/listener.config";
-import { DB_COLLECTIONS } from "src/constants/collections";
-import { StateDocument } from "./entity/listener.state.entity";
-import HOUSING_POOL_LLC_ABI from "./abis/housingPoolLLC";
+import { LISTENER_CONFIG } from "./config/listener.config";
+import { PrismaService } from "src/prisma/prisma.service";
 
 @Injectable()
 export class ListenerService implements OnModuleInit, OnModuleDestroy {
@@ -23,8 +19,7 @@ export class ListenerService implements OnModuleInit, OnModuleDestroy {
     private readonly contractManager: ContractManagerService,
     private readonly handlerRegistry: HandlerRegistryService,
     private readonly providerPoolService: ProviderService,
-    @InjectModel(DB_COLLECTIONS.STATE)
-    private readonly stateModel: Model<StateDocument>,
+    private readonly prisma: PrismaService,
   ) {}
 
   async onModuleInit() {
@@ -88,11 +83,12 @@ export class ListenerService implements OnModuleInit, OnModuleDestroy {
     eventNames: string[],
     contractAddress?: string,
   ): Promise<{ deleted: number }> {
-    const filter: Record<string, any> = { eventName: { $in: eventNames } };
+    const where: any = { eventName: { in: eventNames } };
     if (contractAddress) {
-      filter.contract = contractAddress.toLowerCase();
+      where.contract = contractAddress.toLowerCase();
     }
-    const result = await this.stateModel.deleteMany(filter);
-    return { deleted: result.deletedCount };
+    
+    const result = await this.prisma.listenerState.deleteMany({ where });
+    return { deleted: result.count };
   }
 }

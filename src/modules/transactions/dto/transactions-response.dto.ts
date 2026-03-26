@@ -36,7 +36,7 @@ export class TransactionDto {
   @ApiProperty({ 
     description: "Transaction type", 
     enum: PresaleTxType,
-    example: PresaleTxType.BLOCKCHAIN
+    example: PresaleTxType.Blockchain
   })
   type: PresaleTxType;
 

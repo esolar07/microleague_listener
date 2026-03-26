@@ -167,7 +167,7 @@ export class ListenerMonitoringController {
   @ApiQuery({ name: 'contractAddress', required: false })
   async detectGaps(@Query('contractAddress') contractAddress?: string) {
     if (contractAddress) {
-      return this.gapDetectorService.detectGaps(contractAddress);
+      return this.gapDetectorService.detectGaps(contractAddress, 'all', 0, 999999999);
     }
     return this.gapDetectorService.detectGapsForAllContracts();
   }

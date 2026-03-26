@@ -36,92 +36,52 @@ export class BankTransfersController {
   @ApiCreateBankTransfer()
   @UseGuards(AdminGuard)
   async create(@Body() createBankTransferDto: CreateBankTransferDto) {
-    const transfer = await this.bankTransfersService.create(createBankTransferDto);
-    return {
-      statusCode: HttpStatus.CREATED,
-      message: 'Bank transfer submitted successfully',
-      data: transfer,
-    };
+    return await this.bankTransfersService.create(createBankTransferDto);
   }
 
   @Get()
   @UseGuards(AdminGuard)
   @ApiGetAllBankTransfers()
   async findAll(@Query() filters: FilterBankTransfersDto) {
-    const result = await this.bankTransfersService.findAll(filters);
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Bank transfers retrieved successfully',
-      data: result.data,
-      pagination: result.pagination,
-      stats: result.stats,
-    };
+    return await this.bankTransfersService.findAll(filters);
   }
 
   @Get('stats')
   @UseGuards(AdminGuard)
   @ApiGetBankTransferStats()
   async getStats() {
-    const stats = await this.bankTransfersService.getStats();
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Statistics retrieved successfully',
-      data: stats,
-    };
+    return await this.bankTransfersService.getStats();
   }
 
-  @Get(':id')
+  @Get(':transferId')
   @ApiGetBankTransfer()
-  async findOne(@Param('id') id: string) {
-    const transfer = await this.bankTransfersService.findOne(id);
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Bank transfer retrieved successfully',
-      data: transfer,
-    };
+  async findOne(@Param('transferId') transferId: string) {
+    return await this.bankTransfersService.findOne(transferId);
   }
 
-  @Patch(':id')
+  @Patch(':transferId')
   @ApiUpdateBankTransfer()
   async update(
-    @Param('id') id: string,
+    @Param('transferId') transferId: string,
     @Body() updateBankTransferDto: UpdateBankTransferDto,
   ) {
-    const transfer = await this.bankTransfersService.update(id, updateBankTransferDto);
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Bank transfer updated successfully',
-      data: transfer,
-    };
+    return await this.bankTransfersService.update(transferId, updateBankTransferDto);
   }
 
-  @Post(':id/verify')
+  @Post(':transferId/verify')
   @ApiVerifyBankTransfer()
   async verify(
-    @Param('id') id: string,
+    @Param('transferId') transferId: string,
     @Body() verifyBankTransferDto: VerifyBankTransferDto,
   ) {
     const adminId = 'admin-user-id'; // Replace with actual admin ID from request
-    const transfer = await this.bankTransfersService.verify(id, verifyBankTransferDto, adminId);
-    
-    const message = verifyBankTransferDto.status === 'Verified' 
-      ? `Bank transfer ${id} has been approved and tokens allocated`
-      : `Bank transfer ${id} has been rejected`;
-
-    return {
-      statusCode: HttpStatus.OK,
-      message,
-      data: transfer,
-    };
+    return await this.bankTransfersService.verify(transferId, verifyBankTransferDto, adminId);
   }
 
-  @Delete(':id')
+  @Delete(':transferId')
   @ApiDeleteBankTransfer()
-  async remove(@Param('id') id: string) {
-    await this.bankTransfersService.remove(id);
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Bank transfer deleted successfully',
-    };
+  async remove(@Param('transferId') transferId: string) {
+    await this.bankTransfersService.remove(transferId);
+    return { message: 'Bank transfer deleted successfully' };
   }
 }

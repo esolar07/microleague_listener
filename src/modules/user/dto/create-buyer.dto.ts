@@ -1,6 +1,6 @@
 import { IsString, IsNumber, IsOptional, IsDateString, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { BuyerStatus } from '../entities/user.entity';
+import { BuyerStatus } from '@prisma/client';
 
 export class CreateBuyerDto {
   @ApiProperty({ example: '0x742d35f8a9b3c4e1d2f6a8e7c9b5d4a3f2e1d0c9' })

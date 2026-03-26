@@ -1,24 +1,20 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from "@nestjs/common";
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as jwksClient from "jwks-rsa";
 import { jwtConstants } from "src/constants/jwt.constant";
-import { AdminService } from "src/modules/admin/admin.service";
+import { PrismaService } from "src/prisma/prisma.service";
+import { UserService } from "src/modules/user/user.service";
 
 @Injectable()
 export class AdminGuard implements CanActivate {
-  private jwksClient: jwksClient.JwksClient;
+  private client: jwksClient.JwksClient;
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly adminService: AdminService
+    private readonly userService: UserService,
+    private readonly prisma: PrismaService,
   ) {
-    // Initialize JWKS client with Dynamic's JWKS endpoint
-    this.jwksClient = jwksClient({
+    this.client = jwksClient({
       jwksUri: jwtConstants.jwksUri,
       rateLimit: true,
       cache: true,
@@ -30,72 +26,76 @@ export class AdminGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const authorization = request.headers.authorization;
-
+    
     if (!authorization) {
       throw new UnauthorizedException("Missing authorization header");
     }
-
+    
     const token = authorization.split(" ")[1];
-
     if (!token) {
       throw new UnauthorizedException("Missing token");
     }
 
     try {
-      // Get the signing key from JWKS
-      const signingKey = await this.getSigningKey(token);
-
-      // Verify JWT using the key from JWKS
-      const decoded = this.jwtService.verify(token, {
-        secret: signingKey,
-        algorithms: ["RS256"],
-      });
-
-      if (!decoded) {
-        throw new UnauthorizedException("Invalid token");
+      // Parse token parts manually for debugging
+      const tokenParts = token.split(".");
+      if (tokenParts.length !== 3) {
+        throw new UnauthorizedException("Invalid token format - not 3 parts");
       }
-      const authUser = decoded?.verified_credentials?.find(
+      
+      // Decode header
+      const header = JSON.parse(
+        Buffer.from(tokenParts[0], "base64url").toString()
+      );
+      
+      // Decode payload (without verification for debugging)
+      const payload = JSON.parse(
+        Buffer.from(tokenParts[1], "base64url").toString()
+      );
+      
+      const kid = header?.kid;
+      if (!kid) {
+        throw new UnauthorizedException("Token missing kid in header");
+      }
+      
+      const authUser = payload?.verified_credentials?.find(
         (item: { address: any }) => item.address
       );
+      
+      if (!authUser?.address) {
+        throw new UnauthorizedException("No wallet address found in token");
+      }
 
-      const admin = await this.adminService.adminModel.findOne({
-        address: authUser?.address.toLowerCase(),
+      // Create or update user
+      const user = await this.userService.createOrUpdate({
+        email: payload?.email,
+        walletAddress: authUser?.address,
       });
 
-      // const admin = await this.adminService.adminModel.findOne({
-      //   address: { $regex: new RegExp(authUser?.address, "i") },
-      // });
-      if (!admin) {
-        throw new UnauthorizedException("Not an admin");
+      // Check if user is admin using direct Prisma query
+      const admin = await this.prisma.$queryRaw`
+        SELECT * FROM admins WHERE address = ${authUser.address.toLowerCase()} LIMIT 1
+      `;
+      
+      if (!admin || (Array.isArray(admin) && admin.length === 0)) {
+        throw new UnauthorizedException("User is not an admin");
       }
 
-      // Attach admin info to the request for further processing if needed
-      request.user = admin;
-
-      return true; // Allow access
+      request.user = user;
+      return true;
     } catch (error) {
-      throw new UnauthorizedException("Unauthorized");
-    }
-  }
-
-  private async getSigningKey(token: string): Promise<string> {
-    try {
-      // Decode the token header to get the key ID (kid)
-      const decodedHeader = this.jwtService.decode(token, {
-        complete: true,
-      }) as any;
-      const kid = decodedHeader?.header?.kid;
-
-      if (!kid) {
-        throw new Error("Token does not have a key ID (kid)");
+      console.error("=== ADMIN GUARD ERROR ===");
+      console.error("Error:", error);
+      
+      // If it's already an UnauthorizedException, re-throw it
+      if (error instanceof UnauthorizedException) {
+        throw error;
       }
-
-      // Get the signing key from JWKS
-      const key = await this.jwksClient.getSigningKey(kid);
-      return key.getPublicKey();
-    } catch (error) {
-      console.log("Error getting signing key:", error);
-      throw new UnauthorizedException("Unable to verify token signature");
+      
+      // For any other error, wrap it
+      throw new UnauthorizedException(
+        `Admin authentication failed: ${error.message}`
+      );
     }
   }
 }

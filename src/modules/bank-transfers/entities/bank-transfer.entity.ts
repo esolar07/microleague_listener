@@ -1,68 +1,31 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document, Schema as MongooseSchema } from "mongoose";
+// Bank Transfer types and enums
+// The actual model is defined in prisma/schema.prisma
 
-export type BankTransferDocument = BankTransfer & Document;
+export interface BankTransfer {
+  id: string;
+  transferId: string;
+  walletAddress: string;
+  amount: number;
+  senderName: string;
+  bankName: string;
+  transactionRef: string;
+  paymentRef: string;
+  submittedDate: Date;
+  status: BankTransferStatus;
+  proofUrl: string;
+  notes: string;
+  verificationNote?: string | null;
+  verifiedBy?: string | null;
+  verifiedAt?: Date | null;
+  rejectedBy?: string | null;
+  rejectedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export enum BankTransferStatus {
   PENDING = "Pending",
-  VERIFIED = "Verified",
+  VERIFIED = "Verified", 
   REJECTED = "Rejected",
   ALL = "All",
 }
-
-@Schema({ timestamps: true })
-export class BankTransfer {
-  @Prop({ required: true })
-  id: string; // BT-2025-001 format
-
-  @Prop({ required: true })
-  walletAddress: string;
-
-  @Prop({ required: true })
-  amount: number;
-
-  @Prop({ required: true })
-  senderName: string;
-
-  @Prop({ required: true })
-  bankName: string;
-
-  @Prop({ required: true })
-  transactionRef: string;
-
-  @Prop({ required: true })
-  paymentRef: string;
-
-  @Prop({ required: true })
-  submittedDate: Date;
-
-  @Prop({
-    type: String,
-    enum: BankTransferStatus,
-    default: BankTransferStatus.PENDING,
-  })
-  status: BankTransferStatus;
-
-  @Prop({ required: true })
-  proofUrl: string;
-
-  @Prop({ default: "" })
-  notes: string;
-
-  @Prop()
-  verificationNote?: string;
-
-  @Prop()
-  verifiedBy?: string;
-
-  @Prop()
-  verifiedAt?: Date;
-
-  @Prop()
-  rejectedBy?: string;
-
-  @Prop()
-  rejectedAt?: Date;
-}
-
-export const BankTransferSchema = SchemaFactory.createForClass(BankTransfer);

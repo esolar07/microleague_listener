@@ -1,40 +1,21 @@
-import { Model } from 'mongoose';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+export interface PaginationOptions {
+  page?: number;
+  limit?: number;
+  sort?: any;
+}
 
-export async function paginate<T>(
-  model: Model<T>,
-  query: any = {},
-  paginationDto: PaginationDto,
-  populateFields: any[] = [],
-): Promise<{
+export interface PaginationResult<T> {
   data: T[];
   totalCount: number;
   totalPages: number;
   page: number;
   limit: number;
-}> {
-  const { page = 1, limit = 10, sort = { createdAt: -1 } } = paginationDto;
+}
+
+export function calculatePagination(options: PaginationOptions) {
+  const page = Math.max(1, options.page || 1);
+  const limit = Math.min(100, Math.max(1, options.limit || 10));
   const skip = (page - 1) * limit;
-
-  const [data, totalCount] = await Promise.all([
-    model
-      .find(query)
-      .populate(populateFields)
-      .sort(sort)
-      .skip(skip)
-      .limit(limit)
-      .lean() // ✅ ADD THIS
-      .exec() as Promise<T[]>,
-    model.countDocuments(query).exec(),
-  ]);
-
-  const totalPages = Math.ceil(totalCount / limit);
-
-  return {
-    data,
-    totalCount,
-    totalPages,
-    page,
-    limit,
-  };
+  
+  return { page, limit, skip };
 }

@@ -5,10 +5,9 @@ import {
   IsOptional,
   IsNumber,
   IsString,
-  IsMongoId,
 } from "class-validator";
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { BuyerStatus } from "../entities/user.entity";
+import { BuyerStatus } from "@prisma/client";
 
 export class UpdateBuyerDto extends PartialType(CreateBuyerDto) {
   // Numeric fields
@@ -86,11 +85,9 @@ export class UpdateBuyerDto extends PartialType(CreateBuyerDto) {
   @IsString()
   country?: string;
 
-  // Dates
-
   // Ref fields
-  @ApiPropertyOptional({ example: "675abc1299cd7821364fa002" })
+  @ApiPropertyOptional({ example: "clx123abc456def789" })
   @IsOptional()
-  @IsMongoId()
-  referredBy?: string;
+  @IsString()
+  referredById?: string;
 }

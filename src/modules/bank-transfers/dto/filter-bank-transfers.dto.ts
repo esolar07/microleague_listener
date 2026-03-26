@@ -1,5 +1,5 @@
-import { IsOptional, IsString, IsEnum } from 'class-validator';
-import { BankTransferStatus } from '../entities/bank-transfer.entity';
+import { IsOptional, IsString, IsIn } from 'class-validator';
+import { BankTransferStatus } from '@prisma/client';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 export class FilterBankTransfersDto extends PaginationDto {
@@ -8,6 +8,6 @@ export class FilterBankTransfersDto extends PaginationDto {
   search?: string;
 
   @IsOptional()
-  @IsEnum(BankTransferStatus)
-  status?: BankTransferStatus;
+  @IsIn(['All', 'Pending', 'Verified', 'Rejected'])
+  status?: 'All' | BankTransferStatus;
 }

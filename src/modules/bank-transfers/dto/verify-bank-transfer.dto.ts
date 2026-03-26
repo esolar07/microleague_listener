@@ -1,9 +1,9 @@
 import { IsString, IsOptional, IsEnum } from 'class-validator';
-import { BankTransferStatus } from '../entities/bank-transfer.entity';
+import { BankTransferStatus } from '@prisma/client';
 
 export class VerifyBankTransferDto {
-  @IsEnum([BankTransferStatus.VERIFIED, BankTransferStatus.REJECTED])
-  status: BankTransferStatus.VERIFIED | BankTransferStatus.REJECTED;
+  @IsEnum(BankTransferStatus)
+  status: BankTransferStatus;
 
   @IsOptional()
   @IsString()

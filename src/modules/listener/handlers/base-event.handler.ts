@@ -3,16 +3,13 @@ import { Logger } from "@nestjs/common";
 import { IEventHandler } from "../interfaces/event-handler.interface";
 import { ContractEventConfig } from "../config/listener.config";
 import { JsonRpcProvider } from "ethers";
-import { InjectModel } from "@nestjs/mongoose";
-import { DB_COLLECTIONS } from "src/constants/collections";
-import { Model } from "mongoose";
-import { StateDocument } from "../entity/listener.state.entity";
+import { PrismaService } from "src/prisma/prisma.service";
 
 export abstract class BaseEventHandler implements IEventHandler {
   protected logger = new Logger(this.constructor.name);
 
   constructor(
-    @InjectModel(DB_COLLECTIONS.STATE) readonly stateModel: Model<StateDocument>
+    protected readonly prisma: PrismaService
   ) {}
 
   abstract handle(
@@ -32,26 +29,39 @@ export abstract class BaseEventHandler implements IEventHandler {
     const eventId = `${contractAddress.toLowerCase()}-${eventName}-${transactionHash}-${logIndex}`;
 
     // Save to your state tracking collection
-    await this.stateModel.findOneAndUpdate(
-      { eventId },
-      {
+    await this.prisma.listenerState.upsert({
+      where: { eventId },
+      update: {
         contract: contractAddress.toLowerCase(),
         eventName,
         blockNumber,
-        transactionHash,
+        hash: transactionHash,
         logIndex,
         processedAt: new Date(),
-        eventId,
+        type: eventName,
+        blockHash: '', // We'll need to get this from the event if needed
       },
-      { upsert: true }
-    );
+      create: {
+        eventId,
+        contract: contractAddress.toLowerCase(),
+        eventName,
+        blockNumber,
+        hash: transactionHash,
+        logIndex,
+        processedAt: new Date(),
+        type: eventName,
+        blockHash: '', // We'll need to get this from the event if needed
+      },
+    });
 
     return eventId;
   }
 
   protected async isEventProcessed(eventId: string): Promise<boolean> {
     // Check if event was already processed
-    const existingEvent = await this.stateModel.findOne({ eventId });
+    const existingEvent = await this.prisma.listenerState.findUnique({
+      where: { eventId }
+    });
     return !!existingEvent;
   }
 }

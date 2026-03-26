@@ -51,6 +51,49 @@ export class UserController {
     return this.userService.findUserByAddress(address);
   }
 
+  @Get("wallet/:walletAddress")
+  async getBuyerByWallet(@Param("walletAddress") walletAddress: string) {
+    const buyer = await this.userService.findByWalletAddress(walletAddress);
+    return {
+      statusCode: HttpStatus.OK,
+      message: "Buyer retrieved successfully",
+      data: buyer,
+    };
+  }
+
+  @Patch("wallet/:walletAddress")
+  async updateBuyerByWallet(
+    @Param("walletAddress") walletAddress: string,
+    @Body() updateBuyerDto: UpdateBuyerDto,
+  ) {
+    const buyer = await this.userService.updateByWalletAddress(walletAddress, updateBuyerDto);
+    return {
+      statusCode: HttpStatus.OK,
+      message: "Buyer updated successfully",
+      data: buyer,
+    };
+  }
+
+  @Patch("activity/:walletAddress")
+  async updateLastActivity(@Param("walletAddress") walletAddress: string) {
+    const buyer = await this.userService.updateLastActivity(walletAddress);
+    return {
+      statusCode: HttpStatus.OK,
+      message: "Last activity updated successfully",
+      data: buyer,
+    };
+  }
+
+  @Patch("referrals/:walletAddress/increment")
+  async incrementReferrals(@Param("walletAddress") walletAddress: string) {
+    const buyer = await this.userService.incrementReferrals(walletAddress);
+    return {
+      statusCode: HttpStatus.OK,
+      message: "Referrals incremented successfully",
+      data: buyer,
+    };
+  }
+
   @UseGuards(AdminGuard)
   @Post()
   @ApiCreateBuyer()

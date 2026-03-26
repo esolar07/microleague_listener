@@ -2,11 +2,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ethers } from "ethers";
 import { HandlerRegistryService } from "./handler-registry.service";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
 import { ContractEventConfig, EventConfig } from "../config/listener.config";
-import { DB_COLLECTIONS } from "src/constants/collections";
-import { StateDocument } from "../entity/listener.state.entity";
+import { PrismaService } from "src/prisma/prisma.service";
 import { ProviderService } from "./provider-pool.service";
 
 // Constants
@@ -29,7 +26,7 @@ export class ContractManagerService {
 
   constructor(
     private readonly handlerRegistry: HandlerRegistryService,
-    @InjectModel(DB_COLLECTIONS.STATE) private readonly stateModel: Model<StateDocument>,
+    private readonly prisma: PrismaService,
     private readonly providerService: ProviderService
   ) { }
 
@@ -455,9 +452,11 @@ export class ContractManagerService {
   ): Promise<number> {
     try {
       // Get from database or default
-      const state = await this.stateModel.findOne({
-        contract: contractAddress.toLowerCase(),
-        type: "lastProcessedBlock",
+      const state = await this.prisma.listenerState.findFirst({
+        where: {
+          contract: contractAddress.toLowerCase(),
+          type: "lastProcessedBlock",
+        }
       });
       return state?.blockNumber || 0;
     } catch (error) {
@@ -475,19 +474,25 @@ export class ContractManagerService {
   ) {
     try {
       // Save to database
-      await this.stateModel.findOneAndUpdate(
-        {
-          contract: contractAddress.toLowerCase(),
-          type: "lastProcessedBlock",
+      await this.prisma.listenerState.upsert({
+        where: {
+          eventId: `${contractAddress.toLowerCase()}-lastProcessedBlock`
         },
-        {
+        update: {
+          blockNumber,
+        },
+        create: {
+          eventId: `${contractAddress.toLowerCase()}-lastProcessedBlock`,
           contract: contractAddress.toLowerCase(),
           type: "lastProcessedBlock",
           blockNumber,
-          updatedAt: new Date(),
-        },
-        { upsert: true }
-      );
+          hash: "",
+          logIndex: 0,
+          processedAt: new Date(),
+          eventName: "lastProcessedBlock",
+          blockHash: "",
+        }
+      });
     } catch (error) {
       this.logger.error(
         `Error saving last processed block for ${contractAddress}`,

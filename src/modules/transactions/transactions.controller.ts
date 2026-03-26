@@ -78,4 +78,11 @@ export class TransactionsController {
   ): Promise<{ success: boolean; message: string }> {
     return await this.transactionsService.deleteTransaction(txHash);
   }
+
+  @Get("user/tokens")
+  async getUserTokens(
+    @Query("identifier") identifier: string
+  ): Promise<{ identifier: string; totalTokens: number }> {
+    return await this.transactionsService.getUserTokens(identifier);
+  }
 }
