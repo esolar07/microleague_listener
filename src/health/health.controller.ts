@@ -18,7 +18,7 @@ export class HealthController {
   async getDatabaseHealth() {
     try {
       // Try a simple query to test database connection
-      await this.prisma.user.count();
+      await this.prisma.presaleUser.count();
       return {
         status: 'connected',
         database: 'postgresql',

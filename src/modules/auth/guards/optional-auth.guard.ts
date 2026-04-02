@@ -65,7 +65,7 @@ export class OptionalJwtAuthGuard implements CanActivate {
         walletAddress: authUser?.address,
       });
 
-      console.log('OptionalAuth - User authenticated:', user?.id || user?.email);
+      console.log('OptionalAuth - User authenticated:', user?.id);
       request.user = user;
       return true;
     } catch (error) {

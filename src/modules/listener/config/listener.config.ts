@@ -43,6 +43,13 @@ export const LISTENER_CONFIG: ContractEventConfig[] = [
         processPrevious: true,
         batchSize: 100,
       },
+      {
+        eventName: 'VestingScheduleCreated',
+        handler: 'VestingScheduleCreatedHandler',
+        enabled: true,
+        processPrevious: true,
+        batchSize: 100,
+      },
     ],
   },
 

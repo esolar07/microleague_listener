@@ -1,10 +1,8 @@
-// auth/user.service.ts
+// user.service.ts — operates on PresaleUser (shared BE database)
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
-import { BuyerStatus, User } from "@prisma/client";
+import { PresaleUser } from "@prisma/client";
 import { CreateUserDTO } from "./dto/create-user.dto";
-import { FilterBuyersDto } from "./dto/filter-buyers.dto";
-import { UpdateBuyerDto } from "./dto/update-buyer.dto";
 
 function normalizeWalletAddress(walletAddress?: string | null): string | null {
   if (!walletAddress) return null;
@@ -15,280 +13,160 @@ function normalizeWalletAddress(walletAddress?: string | null): string | null {
 
 @Injectable()
 export class UserService {
-  constructor(
-    private readonly prisma: PrismaService,
-  ) { }
+  constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: any): Promise<User> {
-    return this.prisma.user.create({ data });
+  async create(data: any): Promise<PresaleUser> {
+    return this.prisma.presaleUser.create({ data });
   }
 
-  async findOne(where: any): Promise<User | null> {
-    return this.prisma.user.findFirst({ where });
+  async findOne(where: any): Promise<PresaleUser | null> {
+    return this.prisma.presaleUser.findFirst({ where });
   }
 
-  async findUserByAddress(address: string): Promise<User | null> {
-    return this.prisma.user.findFirst({
-      where: { walletAddress: address.toLowerCase() }
+  async findUserByAddress(address: string): Promise<PresaleUser | null> {
+    return this.prisma.presaleUser.findFirst({
+      where: { walletAddress: address.toLowerCase() },
     });
   }
 
-  async findByWalletAddress(walletAddress: string): Promise<User | null> {
+  async findByWalletAddress(walletAddress: string): Promise<PresaleUser | null> {
     const normalized = normalizeWalletAddress(walletAddress);
     if (!normalized) return null;
-
-    return this.prisma.user.findUnique({
-      where: { walletAddress: normalized }
+    return this.prisma.presaleUser.findUnique({
+      where: { walletAddress: normalized },
     });
   }
 
-  async createOrUpdate(createUserDto: CreateUserDTO): Promise<User> {
+  async createOrUpdate(createUserDto: CreateUserDTO): Promise<PresaleUser> {
     const normalizedWallet = normalizeWalletAddress(createUserDto.walletAddress);
-    
-    if (!normalizedWallet) {
-      throw new Error("Invalid wallet address");
-    }
+    if (!normalizedWallet) throw new Error("Invalid wallet address");
 
-    return this.prisma.user.upsert({
+    return this.prisma.presaleUser.upsert({
       where: { walletAddress: normalizedWallet },
       update: {
-        email: createUserDto.email,
-        firstName: createUserDto.firstName,
-        lastName: createUserDto.lastName,
-        phone: createUserDto.phone,
-        country: createUserDto.country,
-        username: createUserDto.username,
-        fullName: createUserDto.fullName,
+        lastActivity: new Date(),
       },
       create: {
-        userId: normalizedWallet, // Using wallet as userId for now
         walletAddress: normalizedWallet,
-        email: createUserDto.email,
-        firstName: createUserDto.firstName,
-        lastName: createUserDto.lastName,
-        phone: createUserDto.phone,
-        country: createUserDto.country,
-        username: createUserDto.username,
-        fullName: createUserDto.fullName,
         joinDate: new Date(),
+        lastActivity: new Date(),
       },
     });
   }
 
-  async findAll(filters: FilterBuyersDto): Promise<{
-    data: User[];
-    pagination: {
-      totalCount: number;
-      totalPages: number;
-      page: number;
-      limit: number;
-    };
+  async findAll(filters: any): Promise<{
+    data: PresaleUser[];
+    pagination: { totalCount: number; totalPages: number; page: number; limit: number };
     stats: any;
   }> {
-    const { search, status, page = 1, limit = 10 } = filters;
+    const { search, page = 1, limit = 10 } = filters;
     const where: any = {};
 
-    // Search filter
     if (search) {
-      where.OR = [
-        { walletAddress: { contains: search, mode: 'insensitive' } },
-        { username: { contains: search, mode: 'insensitive' } },
-        { fullName: { contains: search, mode: 'insensitive' } },
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    // Status filter
-    if (status && status !== BuyerStatus.All) {
-      where.status = status;
+      where.walletAddress = { contains: search, mode: "insensitive" };
     }
 
     const [data, totalCount] = await Promise.all([
-      this.prisma.user.findMany({
+      this.prisma.presaleUser.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { joinDate: 'desc' },
+        orderBy: { joinDate: "desc" },
       }),
-      this.prisma.user.count({ where }),
+      this.prisma.presaleUser.count({ where }),
     ]);
 
     const stats = await this.getStats();
 
     return {
       data,
-      pagination: {
-        totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-        page,
-        limit,
-      },
+      pagination: { totalCount, totalPages: Math.ceil(totalCount / limit), page, limit },
       stats,
     };
   }
 
-  async update(id: string, updateBuyerDto: UpdateBuyerDto): Promise<User> {
+  async update(id: string, updateData: any): Promise<PresaleUser> {
     try {
-      // Handle referredById separately if it exists
-      const { referredById, ...updateData } = updateBuyerDto;
-      
-      const updatePayload: any = updateData;
-      
-      if (referredById) {
-        updatePayload.referredBy = {
-          connect: { id: referredById }
-        };
-      }
-
-      return await this.prisma.user.update({
-        where: { id },
-        data: updatePayload,
-      });
-    } catch (error) {
+      return await this.prisma.presaleUser.update({ where: { id }, data: updateData });
+    } catch {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
   }
 
   async remove(id: string): Promise<void> {
     try {
-      await this.prisma.user.delete({
-        where: { id },
-      });
-    } catch (error) {
+      await this.prisma.presaleUser.delete({ where: { id } });
+    } catch {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
   }
 
-  async getTopBuyers(limit: number = 5): Promise<User[]> {
-    return this.prisma.user.findMany({
-      where: { status: BuyerStatus.Active },
-      orderBy: { tokensPurchased: 'desc' },
+  async getTopBuyers(limit: number = 5): Promise<PresaleUser[]> {
+    return this.prisma.presaleUser.findMany({
+      orderBy: { tokensPurchased: "desc" },
       take: limit,
     });
   }
 
   async getStats(): Promise<any> {
-    const [totalBuyers, activeBuyers, aggregates] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.user.count({ where: { status: BuyerStatus.Active } }),
-      this.prisma.user.aggregate({
-        _sum: {
-          amountSpent: true,
-          tokensPurchased: true,
-          claimed: true,
-          unclaimed: true,
-          referralEarnings: true,
-        },
-        _avg: {
-          amountSpent: true,
-        },
+    const [totalBuyers, aggregates] = await Promise.all([
+      this.prisma.presaleUser.count(),
+      this.prisma.presaleUser.aggregate({
+        _sum: { amountSpent: true, tokensPurchased: true, claimed: true, unclaimed: true },
+        _avg: { amountSpent: true },
       }),
     ]);
 
     return {
       totalBuyers,
-      activeBuyers,
-      totalVolume: aggregates._sum.amountSpent || 0,
-      totalTokensPurchased: aggregates._sum.tokensPurchased || 0,
-      totalClaimed: aggregates._sum.claimed || 0,
-      totalUnclaimed: aggregates._sum.unclaimed || 0,
-      totalReferrals: aggregates._sum.referralEarnings || 0,
-      avgPurchase: aggregates._avg.amountSpent || 0,
+      totalVolume: aggregates._sum.amountSpent ?? 0,
+      totalTokensPurchased: aggregates._sum.tokensPurchased ?? 0,
+      totalClaimed: aggregates._sum.claimed ?? 0,
+      totalUnclaimed: aggregates._sum.unclaimed ?? 0,
+      avgPurchase: aggregates._avg.amountSpent ?? 0,
     };
   }
 
-  async findById(userId: string): Promise<User | null> {
-    return this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+  async findById(id: string): Promise<PresaleUser | null> {
+    return this.prisma.presaleUser.findUnique({ where: { id } });
   }
 
-  async updateUser(userId: string, updateData: any): Promise<User> {
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-    });
+  async updateUser(id: string, updateData: any): Promise<PresaleUser> {
+    return this.prisma.presaleUser.update({ where: { id }, data: updateData });
   }
 
-  async addReferral(user: User, data: { referralId: string }): Promise<User | null> {
-    if (user?.referredById) {
-      // Already referred by someone, skip
-      return user;
-    }
-
-    const referrer = await this.prisma.user.findUnique({
-      where: { id: data.referralId }
-    });
-    
-    if (!referrer) {
-      throw new NotFoundException("Referrer not found");
-    }
-
-    // Update current user with referrer
-    return this.prisma.user.update({
-      where: { id: user.id },
-      data: { referredById: referrer.id },
-    });
-  }
-
-  async updateByWalletAddress(walletAddress: string, updateBuyerDto: UpdateBuyerDto): Promise<User> {
+  async updateByWalletAddress(walletAddress: string, updateData: any): Promise<PresaleUser> {
     const normalized = normalizeWalletAddress(walletAddress);
-    if (!normalized) {
-      throw new Error("Invalid wallet address");
-    }
-
+    if (!normalized) throw new Error("Invalid wallet address");
     try {
-      const { referredById, ...updateData } = updateBuyerDto;
-      
-      const updatePayload: any = updateData;
-      
-      if (referredById) {
-        updatePayload.referredBy = {
-          connect: { id: referredById }
-        };
-      }
-
-      return await this.prisma.user.update({
+      return await this.prisma.presaleUser.update({
         where: { walletAddress: normalized },
-        data: updatePayload,
+        data: updateData,
       });
-    } catch (error) {
+    } catch {
       throw new NotFoundException(`User with wallet address ${walletAddress} not found`);
     }
   }
 
-  async updateLastActivity(walletAddress: string): Promise<User> {
+  async updateLastActivity(walletAddress: string): Promise<PresaleUser> {
     const normalized = normalizeWalletAddress(walletAddress);
-    if (!normalized) {
-      throw new Error("Invalid wallet address");
-    }
-
+    if (!normalized) throw new Error("Invalid wallet address");
     try {
-      return await this.prisma.user.update({
+      return await this.prisma.presaleUser.update({
         where: { walletAddress: normalized },
         data: { lastActivity: new Date() },
       });
-    } catch (error) {
+    } catch {
       throw new NotFoundException(`User with wallet address ${walletAddress} not found`);
     }
   }
 
-  async incrementReferrals(walletAddress: string): Promise<User> {
-    const normalized = normalizeWalletAddress(walletAddress);
-    if (!normalized) {
-      throw new Error("Invalid wallet address");
-    }
+  // Stub kept for API compatibility — referral logic not in PresaleUser schema
+  async addReferral(user: PresaleUser, _data: { referralId: string }): Promise<PresaleUser> {
+    return user;
+  }
 
-    try {
-      return await this.prisma.user.update({
-        where: { walletAddress: normalized },
-        data: { 
-          referralEarnings: { increment: 1 } // You might want to adjust this logic
-        },
-      });
-    } catch (error) {
-      throw new NotFoundException(`User with wallet address ${walletAddress} not found`);
-    }
+  async incrementReferrals(walletAddress: string): Promise<PresaleUser> {
+    return this.updateLastActivity(walletAddress);
   }
 }

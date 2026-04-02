@@ -1,93 +1,67 @@
-const { PrismaClient } = require('@prisma/client');
+/**
+ * Register a wallet address as an admin in the database.
+ *
+ * Usage:
+ *   node scripts/create-admin.js <walletAddress> [firstName] [lastName] [--super]
+ *
+ * Examples:
+ *   node scripts/create-admin.js 0xAbc...123
+ *   node scripts/create-admin.js 0xAbc...123 John Doe
+ *   node scripts/create-admin.js 0xAbc...123 John Doe --super
+ */
+
 require('dotenv').config();
+const postgres = require('postgres');
 
-const prisma = new PrismaClient({
-  accelerateUrl: process.env.DATABASE_URL,
-});
+const DIRECT_URL =
+  process.env.DIRECT_URL ||
+  'postgres://490f73d790bde6bc90d64743834599f59ec337bca3d5060a775007b1ce64a699:sk_o5jtaQcJ-poIipnIRvmR1@db.prisma.io:5432/postgres?sslmode=require';
 
-async function createAdmin() {
+const args = process.argv.slice(2);
+const address = args[0];
+
+if (!address || !address.startsWith('0x')) {
+  console.error('Usage: node scripts/create-admin.js <walletAddress> [firstName] [lastName] [--super]');
+  process.exit(1);
+}
+
+const firstName  = args[1] || 'Admin';
+const lastName   = args[2] || 'User';
+const superAdmin = args.includes('--super');
+const normalized = address.toLowerCase();
+
+console.log('\nRegistering admin:');
+console.log('  address   :', normalized);
+console.log('  name      :', firstName, lastName);
+console.log('  superAdmin:', superAdmin);
+
+async function main() {
+  const sql = postgres(DIRECT_URL, { ssl: 'require' });
+
   try {
-    const adminData = {
-      firstName: 'Super',
-      lastName: 'Admin',
-      address: '0x9ed422636822d4db66c26acd856bf0ce25ae6fa5',
-      superAdmin: true
-    };
+    const result = await sql`
+      INSERT INTO admins (id, "firstName", "lastName", address, "superAdmin", "createdAt", "updatedAt")
+      VALUES (gen_random_uuid()::text, ${firstName}, ${lastName}, ${normalized}, ${superAdmin}, NOW(), NOW())
+      ON CONFLICT (address) DO UPDATE
+        SET "firstName"  = EXCLUDED."firstName",
+            "lastName"   = EXCLUDED."lastName",
+            "superAdmin" = EXCLUDED."superAdmin",
+            "updatedAt"  = NOW()
+      RETURNING id, address, "superAdmin", "createdAt"
+    `;
 
-    const normalizedAddress = adminData.address.toLowerCase();
-
-    console.log('Creating super admin user with address:', adminData.address);
-
-    // Create/update in Admin table
-    const admin = await prisma.admin.upsert({
-      where: { address: normalizedAddress },
-      update: {
-        firstName: adminData.firstName,
-        lastName: adminData.lastName,
-        superAdmin: adminData.superAdmin,
-        updatedAt: new Date(),
-      },
-      create: {
-        firstName: adminData.firstName,
-        lastName: adminData.lastName,
-        address: normalizedAddress,
-        superAdmin: adminData.superAdmin,
-      },
-    });
-
-    console.log('✅ Admin record created/updated successfully:');
-    console.log({
-      id: admin.id,
-      firstName: admin.firstName,
-      lastName: admin.lastName,
-      address: admin.address,
-      superAdmin: admin.superAdmin,
-      createdAt: admin.createdAt,
-      updatedAt: admin.updatedAt,
-    });
-
-    // Also create/update in User table for compatibility
-    const adminUser = await prisma.user.upsert({
-      where: { walletAddress: normalizedAddress },
-      update: {
-        isAdmin: true,
-        status: 'Active',
-        lastActivity: new Date(),
-        firstName: adminData.firstName,
-        lastName: adminData.lastName,
-        fullName: `${adminData.firstName} ${adminData.lastName}`,
-      },
-      create: {
-        userId: normalizedAddress,
-        walletAddress: normalizedAddress,
-        isAdmin: true,
-        status: 'Active',
-        joinDate: new Date(),
-        lastActivity: new Date(),
-        firstName: adminData.firstName,
-        lastName: adminData.lastName,
-        fullName: `${adminData.firstName} ${adminData.lastName}`,
-        username: 'superadmin',
-        reputationScore: 1000,
-        reputationTier: 'Excellent',
-      },
-    });
-
-    console.log('✅ User record created/updated successfully:');
-    console.log({
-      id: adminUser.id,
-      userId: adminUser.userId,
-      walletAddress: adminUser.walletAddress,
-      isAdmin: adminUser.isAdmin,
-      status: adminUser.status,
-      fullName: adminUser.fullName,
-    });
-
-  } catch (error) {
-    console.error('❌ Error creating admin user:', error);
+    const row = result[0];
+    console.log('\n✅ Admin registered:');
+    console.log('  id        :', row.id);
+    console.log('  address   :', row.address);
+    console.log('  superAdmin:', row.superAdmin);
+    console.log('  createdAt :', row.createdAt);
   } finally {
-    await prisma.$disconnect();
+    await sql.end();
   }
 }
 
-createAdmin();
+main().catch((e) => {
+  console.error('❌ Error:', e.message);
+  process.exit(1);
+});

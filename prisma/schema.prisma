@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -20,80 +17,27 @@ enum PresaleTxType {
   Claim
 }
 
-enum BuyerStatus {
-  Active
-  Inactive
-  All
+model PresaleUser {
+  id               String    @id @default(cuid())
+  walletAddress    String    @unique
+  tokensPurchased  Float     @default(0)
+  claimed          Float     @default(0)
+  unclaimed        Float     @default(0)
+  amountSpent      Float     @default(0)
+  joinDate         DateTime?
+  lastActivity     DateTime?
+  presaleTxs       PresaleTx[]
+  vestingSchedules VestingSchedule[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  @@map("presale_users")
 }
 
-model User {
-  id                              String      @id @default(cuid())
-  userId                          String      @unique
-  walletAddress                   String?     @unique
-  email                          String?
-  firstName                      String?
-  lastName                       String?
-  phone                          String?
-  profileImage                   String?
-  country                        String?
-  username                       String?
-  fullName                       String?
-  
-  // Presale related fields
-  tokensPurchased                 Float       @default(0)
-  amountSpent                     Float       @default(0)
-  claimed                         Float       @default(0)
-  unclaimed                       Float       @default(0)
-  joinDate                        DateTime?
-  lastActivity                    DateTime?
-  status                          BuyerStatus @default(Active)
-  
-  // Referral fields
-  referredById                    String?
-  referredBy                      User?       @relation("UserReferrals", fields: [referredById], references: [id])
-  referrals                       User[]      @relation("UserReferrals")
-  referralEarnings                Float       @default(0)
-  
-  // Settings
-  notificationsEnabled            Boolean     @default(true)
-  isAdmin                         Boolean     @default(false)
-  
-  // KYC fields
-  kycStatus                       String      @default("pending")
-  veriffSessionId                 String?
-  kycVerifiedAt                   DateTime?
-  kycDeclinedReason               String?
-  
-  // Reputation fields
-  reputationScore                 Int         @default(100)
-  reputationTier                  String      @default("Good")
-  reputationUpdatedAt             DateTime?
-  poolContributionScore           Int         @default(0)
-  kycScore                        Int         @default(0)
-  stakingScore                    Int         @default(0)
-  externalCreditScore             Int         @default(0)
-  
-  // Staking fields
-  stakedAmount                    Float       @default(0)
-  stakingStartDate                DateTime?
-  externalCreditScoreValue        Int?
-  externalCreditScoreUpdatedAt    DateTime?
-  
-  // Relations
-  presaleTxs                      PresaleTxs[]
-  
-  createdAt                       DateTime    @default(now())
-  updatedAt                       DateTime    @updatedAt
-  
-  @@map("users")
-}
-
-model PresaleTxs {
+model PresaleTx {
   id            String        @id @default(cuid())
   txHash        String        @unique
   contract      String
   address       String
-  email         String?
   tokenAddress  String
   type          PresaleTxType @default(Crypto_Payment)
   amount        Float
@@ -102,15 +46,32 @@ model PresaleTxs {
   timestamp     Int
   usdAmount     Float
   quote         String
-  typeformId    String?
-  
-  // Relations
-  user          User?         @relation(fields: [address], references: [walletAddress])
-  
+  presaleUser   PresaleUser?  @relation(fields: [address], references: [walletAddress])
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  
+  @@index([address])
+  @@index([type])
   @@map("presale_txs")
+}
+
+model VestingSchedule {
+  id              String      @id @default(cuid())
+  walletAddress   String
+  scheduleId      Int
+  stageId         Int         @default(0)
+  totalAmount     Float
+  startTime       Int
+  cliff           Int
+  duration        Int
+  releaseInterval Int
+  claimed         Float       @default(0)
+  contract        String
+  presaleUser     PresaleUser @relation(fields: [walletAddress], references: [walletAddress])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  @@unique([walletAddress, scheduleId, contract])
+  @@index([walletAddress])
+  @@map("vesting_schedules")
 }
 
 model ListenerState {
@@ -126,30 +87,26 @@ model ListenerState {
   blockHash     String
   reorged       Boolean   @default(false)
   reorgedAt     DateTime?
-  
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  
   @@map("listener_state")
 }
 
 model FailedEvent {
-  id            String    @id @default(cuid())
-  eventId       String    @unique
-  contract      String
-  eventName     String
-  blockNumber   Int
+  id              String    @id @default(cuid())
+  eventId         String    @unique
+  contract        String
+  eventName       String
+  blockNumber     Int
   transactionHash String
-  logIndex      Int
-  error         String
-  retryCount    Int       @default(0)
-  lastRetryAt   DateTime?
-  resolved      Boolean   @default(false)
-  resolvedAt    DateTime?
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+  logIndex        Int
+  error           String
+  retryCount      Int       @default(0)
+  lastRetryAt     DateTime?
+  resolved        Boolean   @default(false)
+  resolvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   @@map("failed_events")
 }
 
@@ -159,10 +116,8 @@ model Admin {
   lastName    String
   address     String    @unique
   superAdmin  Boolean   @default(false)
-  
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  
   @@map("admins")
 }
 
@@ -172,9 +127,32 @@ enum BankTransferStatus {
   Rejected
 }
 
+enum ActivityType {
+  Buy
+  Claim
+  Vesting_Created
+}
+
+model RecentActivity {
+  id            String       @id @default(cuid())
+  walletAddress String
+  action        String
+  activityType  ActivityType
+  amount        Float
+  usdAmount     Float        @default(0)
+  txHash        String?
+  metadata      Json?
+  timestamp     DateTime
+  createdAt     DateTime     @default(now())
+
+  @@index([walletAddress])
+  @@index([timestamp])
+  @@map("recent_activities")
+}
+
 model BankTransfer {
   id              String              @id @default(cuid())
-  transferId      String              @unique // BT-2025-001 format
+  transferId      String              @unique
   walletAddress   String
   amount          Float
   senderName      String
@@ -190,9 +168,7 @@ model BankTransfer {
   verifiedAt      DateTime?
   rejectedBy      String?
   rejectedAt      DateTime?
-  
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
-  
   @@map("bank_transfers")
 }

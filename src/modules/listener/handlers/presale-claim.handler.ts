@@ -59,7 +59,7 @@ export class PresaleClaimHandler extends BaseEventHandler {
       console.log(`Claim processed: buyer=${buyer}, amount=${tokens}, schedules=${schedulesClaimed}`);
 
       // First, ensure user exists (update buyer aggregate - move tokens from unclaimed to claimed)
-      await this.prisma.user.upsert({
+      await this.prisma.presaleUser.upsert({
         where: { walletAddress: buyer.toLowerCase() },
         update: {
           claimed: { increment: tokens },
@@ -67,7 +67,6 @@ export class PresaleClaimHandler extends BaseEventHandler {
           lastActivity: new Date(),
         },
         create: {
-          userId: buyer.toLowerCase(), // Using wallet address as userId for now
           walletAddress: buyer.toLowerCase(),
           joinDate: new Date(),
           claimed: tokens,
@@ -76,7 +75,7 @@ export class PresaleClaimHandler extends BaseEventHandler {
       });
 
       // Then, persist presale claim transaction (now that user exists)
-      await this.prisma.presaleTxs.create({
+      await this.prisma.presaleTx.create({
         data: {
           txHash: event.transactionHash,
           contract: contractConfig.contractAddress.toLowerCase(),
@@ -91,6 +90,53 @@ export class PresaleClaimHandler extends BaseEventHandler {
           quote: "CLAIM", // Indicate this is a claim transaction
         },
       });
+
+      // Create recent activity record for Claim event
+      try {
+        await this.prisma.recentActivity.create({
+          data: {
+            walletAddress: buyer.toLowerCase(),
+            action: "Claimed MLC",
+            activityType: "Claim",
+            amount: tokens,
+            usdAmount: 0,
+            txHash: event.transactionHash,
+            timestamp: new Date(timestamp * 1000),
+          },
+        });
+      } catch (err) {
+        this.logger.error("Failed to create activity record for Claim event", err);
+      }
+
+      // Update VestingSchedule claimed fields proportionally
+      const schedules = await this.prisma.vestingSchedule.findMany({
+        where: { walletAddress: buyer.toLowerCase() },
+      });
+
+      if (schedules.length > 0) {
+        const totalUnclaimed = schedules.reduce(
+          (sum, s) => sum + (s.totalAmount - s.claimed),
+          0
+        );
+
+        if (totalUnclaimed > 0) {
+          for (const schedule of schedules) {
+            const scheduleUnclaimed = schedule.totalAmount - schedule.claimed;
+            if (scheduleUnclaimed <= 0) continue;
+            const proportion = scheduleUnclaimed / totalUnclaimed;
+            const claimedForSchedule = Number((tokens * proportion).toFixed(6));
+            await this.prisma.vestingSchedule.update({
+              where: { id: schedule.id },
+              data: {
+                claimed: Math.min(
+                  schedule.totalAmount,
+                  schedule.claimed + claimedForSchedule
+                ),
+              },
+            });
+          }
+        }
+      }
 
       this.logger.log(
         `Presale Claimed processed: buyer=${buyer}, amount=${amount.toString?.() ?? amount}, schedulesClaimed=${schedulesClaimed.toString?.() ?? schedulesClaimed}`

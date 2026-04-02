@@ -17,7 +17,6 @@ import { AuthUser } from 'src/decorators/user.decorator';
 import { UserService } from '../user/user.service';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { User } from '../user/entities/user.entity';
 
 @ApiTags('Auth')
 @Controller('auth')

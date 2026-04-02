@@ -44,15 +44,6 @@ export class PresaleBuyHandler extends BaseEventHandler {
         usdValue,
       } = event.args;
 
-      // Save listener state
-      await this.saveProcessingState(
-        contractConfig.contractAddress,
-        this.getEventName(),
-        event.blockNumber,
-        event.transactionHash,
-        event.index
-      );
-
       // Convert wei to readable format
       const weiToEth4 = (wei: bigint | string) =>
         Number(Number(formatEther(wei)).toFixed(6));
@@ -67,7 +58,7 @@ export class PresaleBuyHandler extends BaseEventHandler {
 
       // First, ensure user exists (create/update buyer aggregate)
       const now = new Date();
-      await this.prisma.user.upsert({
+      await this.prisma.presaleUser.upsert({
         where: { walletAddress: buyer.toLowerCase() },
         update: {
           tokensPurchased: { increment: tokens },
@@ -76,7 +67,6 @@ export class PresaleBuyHandler extends BaseEventHandler {
           lastActivity: now,
         },
         create: {
-          userId: buyer.toLowerCase(), // Using wallet address as userId for now
           walletAddress: buyer.toLowerCase(),
           joinDate: now,
           tokensPurchased: tokens,
@@ -87,7 +77,7 @@ export class PresaleBuyHandler extends BaseEventHandler {
       });
 
       // Then, persist presale transaction (now that user exists)
-      await this.prisma.presaleTxs.upsert({
+      await this.prisma.presaleTx.upsert({
         where: { txHash: event.transactionHash },
         update: {
           contract: contractConfig.contractAddress.toLowerCase(),
@@ -115,6 +105,32 @@ export class PresaleBuyHandler extends BaseEventHandler {
           quote: paymentToken,
         },
       });
+
+      // Create activity record for the recent activity feed (RecentActivity model)
+      try {
+        await this.prisma.recentActivity.create({
+          data: {
+            walletAddress: buyer.toLowerCase(),
+            action: "Purchased MLC",
+            activityType: "Buy",
+            amount: tokens,
+            usdAmount,
+            txHash: event.transactionHash,
+            timestamp: new Date(timestamp * 1000),
+          },
+        });
+      } catch (err) {
+        this.logger.error("Failed to create activity record for Buy event", err);
+      }
+
+      // Mark as processed only after all DB writes succeed
+      await this.saveProcessingState(
+        contractConfig.contractAddress,
+        this.getEventName(),
+        event.blockNumber,
+        event.transactionHash,
+        event.index
+      );
 
       this.logger.log(
         `Presale Bought processed: buyer=${buyer}, tokenAmount=${tokenAmount.toString?.() ?? tokenAmount}, paymentAmount=${paymentAmount.toString?.() ?? paymentAmount}`

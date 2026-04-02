@@ -3,6 +3,7 @@ import { IEventHandler } from "../interfaces/event-handler.interface";
 import { ModuleRef } from "@nestjs/core";
 import { PresaleBuyHandler } from "../handlers/presale-buy.handler";
 import { PresaleClaimHandler } from "../handlers/presale-claim.handler";
+import { VestingScheduleCreatedHandler } from "../handlers/vesting-schedule-created.handler";
 
 @Injectable()
 export class HandlerRegistryService {
@@ -14,6 +15,7 @@ export class HandlerRegistryService {
     // Register handlers here
     await this.registerHandler(PresaleBuyHandler);
     await this.registerHandler(PresaleClaimHandler);
+    await this.registerHandler(VestingScheduleCreatedHandler);
   }
 
   private async registerHandler(handlerClass: any) {

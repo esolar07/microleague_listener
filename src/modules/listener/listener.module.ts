@@ -7,6 +7,7 @@ import { PresaleBuyHandler } from './handlers/presale-buy.handler';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import { PresaleClaimHandler } from './handlers/presale-claim.handler';
+import { VestingScheduleCreatedHandler } from './handlers/vesting-schedule-created.handler';
 
 // New Services
 import { ProviderService } from './services/provider-pool.service';
@@ -34,10 +35,11 @@ import { ListenerMonitoringController } from './controllers/listener-monitoring.
     // Event Handlers
     PresaleBuyHandler,
     PresaleClaimHandler,
+    VestingScheduleCreatedHandler,
     // Supporting Services
     JwtService,
     UserService,
   ],
-  exports: [PresaleBuyHandler, ProviderService, EventQueueService, MetricsService],
+  exports: [ListenerService, PresaleBuyHandler, VestingScheduleCreatedHandler, ProviderService, EventQueueService, MetricsService],
 })
 export class ListenerModule {}

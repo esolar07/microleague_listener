@@ -1,18 +1,12 @@
-import { IsOptional, IsString, IsEnum, IsNumber, Min, Max } from 'class-validator';
+import { IsOptional, IsString, IsNumber, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { BuyerStatus } from '@prisma/client';
 
 export class FilterBuyersDto {
   @ApiPropertyOptional({ example: '0x742d35f8a9b3c4e1d2f6a8e7c9b5d4a3f2e1d0c9' })
   @IsOptional()
   @IsString()
   search?: string;
-
-  @ApiPropertyOptional({ enum: BuyerStatus })
-  @IsOptional()
-  @IsEnum(BuyerStatus)
-  status?: BuyerStatus;
 
   @ApiPropertyOptional({ example: 1, minimum: 1 })
   @IsOptional()
