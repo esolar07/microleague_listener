@@ -8,6 +8,10 @@ export class FilterBankTransfersDto extends PaginationDto {
   search?: string;
 
   @IsOptional()
+  @IsString()
+  walletAddress?: string;
+
+  @IsOptional()
   @IsIn(['All', 'Pending', 'Verified', 'Rejected'])
   status?: 'All' | BankTransferStatus;
 }

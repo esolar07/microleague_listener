@@ -1,82 +1,50 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from "@nestjs/common";
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import * as jwksClient from "jwks-rsa";
-import { jwtConstants } from "src/constants/jwt.constant";
 import { PrismaService } from "src/prisma/prisma.service";
 import { UserService } from "src/modules/user/user.service";
 
 @Injectable()
 export class AdminGuard implements CanActivate {
-  private client: jwksClient.JwksClient;
-
   constructor(
     private readonly jwtService: JwtService,
     private readonly userService: UserService,
     private readonly prisma: PrismaService,
-  ) {
-    this.client = jwksClient({
-      jwksUri: jwtConstants.jwksUri,
-      rateLimit: true,
-      cache: true,
-      cacheMaxEntries: 5,
-      cacheMaxAge: 600000,
-    });
-  }
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const authorization = request.headers.authorization;
-    
+
     if (!authorization) {
       throw new UnauthorizedException("Missing authorization header");
     }
-    
+
     const token = authorization.split(" ")[1];
     if (!token) {
       throw new UnauthorizedException("Missing token");
     }
 
     try {
-      // Parse token parts manually for debugging
-      const tokenParts = token.split(".");
-      if (tokenParts.length !== 3) {
-        throw new UnauthorizedException("Invalid token format - not 3 parts");
-      }
-      
-      // Decode header
-      const header = JSON.parse(
-        Buffer.from(tokenParts[0], "base64url").toString()
-      );
-      
-      // Decode payload (without verification for debugging)
-      const payload = JSON.parse(
-        Buffer.from(tokenParts[1], "base64url").toString()
-      );
-      
-      const kid = header?.kid;
-      if (!kid) {
-        throw new UnauthorizedException("Token missing kid in header");
-      }
-      
-      const authUser = payload?.verified_credentials?.find(
-        (item: { address: any }) => item.address
-      );
-      
-      if (!authUser?.address) {
-        throw new UnauthorizedException("No wallet address found in token");
+      const payload = this.jwtService.verify(token);
+      const walletAddress = payload.address;
+
+      if (!walletAddress) {
+        throw new UnauthorizedException("Invalid token payload");
       }
 
       // Create or update user
-      const user = await this.userService.createOrUpdate({
-        email: payload?.email,
-        walletAddress: authUser?.address,
-      });
+      const user = await this.userService.createOrUpdate({ walletAddress });
 
-      // Check if user is admin using direct Prisma query
+      // Check if user is admin
       const admin = await this.prisma.$queryRaw`
-        SELECT * FROM admins WHERE address = ${authUser.address.toLowerCase()} LIMIT 1
+        SELECT * FROM admins WHERE address = ${walletAddress} LIMIT 1
       `;
-      
+
       if (!admin || (Array.isArray(admin) && admin.length === 0)) {
         throw new UnauthorizedException("User is not an admin");
       }
@@ -84,17 +52,11 @@ export class AdminGuard implements CanActivate {
       request.user = user;
       return true;
     } catch (error) {
-      console.error("=== ADMIN GUARD ERROR ===");
-      console.error("Error:", error);
-      
-      // If it's already an UnauthorizedException, re-throw it
       if (error instanceof UnauthorizedException) {
         throw error;
       }
-      
-      // For any other error, wrap it
       throw new UnauthorizedException(
-        `Admin authentication failed: ${error.message}`
+        `Admin authentication failed: ${error.message}`,
       );
     }
   }

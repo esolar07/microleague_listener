@@ -54,6 +54,11 @@ export class BankTransfersService {
     const limit = filters.limit || 10;
     const where: any = {};
 
+    // walletAddress filter
+    if (filters.walletAddress) {
+      where.walletAddress = { equals: filters.walletAddress, mode: 'insensitive' };
+    }
+
     // Search filter
     if (search) {
       where.OR = [
@@ -95,8 +100,14 @@ export class BankTransfersService {
   }
 
   async findOne(transferId: string): Promise<BankTransfer> {
-    const transfer = await this.prisma.bankTransfer.findUnique({
-      where: { transferId },
+    // Try by transferId first, then by database id
+    const transfer = await this.prisma.bankTransfer.findFirst({
+      where: {
+        OR: [
+          { transferId },
+          { id: transferId },
+        ],
+      },
     });
     
     if (!transfer) {
@@ -108,12 +119,15 @@ export class BankTransfersService {
 
   async update(transferId: string, updateBankTransferDto: UpdateBankTransferDto): Promise<BankTransfer> {
     try {
+      // Find by transferId or id
+      const existing = await this.findOne(transferId);
       const updateData: any = { ...updateBankTransferDto };
       return await this.prisma.bankTransfer.update({
-        where: { transferId },
+        where: { id: existing.id },
         data: updateData,
       });
     } catch (error) {
+      if (error instanceof NotFoundException) throw error;
       throw new NotFoundException(`Bank transfer with ID ${transferId} not found`);
     }
   }
@@ -123,6 +137,8 @@ export class BankTransfersService {
     verifyBankTransferDto: VerifyBankTransferDto, 
     adminId: string
   ): Promise<BankTransfer> {
+    const existing = await this.findOne(transferId);
+
     const updateData: any = {
       status: verifyBankTransferDto.status,
       verificationNote: verifyBankTransferDto.verificationNote,
@@ -136,24 +152,17 @@ export class BankTransfersService {
       updateData.rejectedAt = new Date();
     }
 
-    try {
-      return await this.prisma.bankTransfer.update({
-        where: { transferId },
-        data: updateData,
-      });
-    } catch (error) {
-      throw new NotFoundException(`Bank transfer with ID ${transferId} not found`);
-    }
+    return await this.prisma.bankTransfer.update({
+      where: { id: existing.id },
+      data: updateData,
+    });
   }
 
   async remove(transferId: string): Promise<void> {
-    try {
-      await this.prisma.bankTransfer.delete({
-        where: { transferId },
-      });
-    } catch (error) {
-      throw new NotFoundException(`Bank transfer with ID ${transferId} not found`);
-    }
+    const existing = await this.findOne(transferId);
+    await this.prisma.bankTransfer.delete({
+      where: { id: existing.id },
+    });
   }
 
   async getStats(): Promise<any> {

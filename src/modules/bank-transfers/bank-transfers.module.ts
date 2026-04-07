@@ -2,13 +2,12 @@ import { Module } from "@nestjs/common";
 import { BankTransfersController } from "./bank-transfers.controller";
 import { BankTransfersService } from "./bank-transfers.service";
 import { PrismaModule } from "src/prisma/prisma.module";
-import { JwtService } from "@nestjs/jwt";
-import { UserService } from "../user/user.service";
+import { AuthModule } from "../auth/auth.module";
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AuthModule],
   controllers: [BankTransfersController],
-  providers: [BankTransfersService, JwtService, UserService],
+  providers: [BankTransfersService],
   exports: [BankTransfersService],
 })
 export class BankTransfersModule {}

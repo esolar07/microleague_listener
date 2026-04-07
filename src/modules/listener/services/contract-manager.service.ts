@@ -348,9 +348,14 @@ export class ContractManagerService {
           // Skip contracts still running their initial historical scan to
           // avoid concurrent RPC overload and lastProcessedBlock race conditions.
           if (instance.isProcessingHistorical) continue;
-          if (latestBlock > instance.lastProcessedBlock) {
-            await this.pollContractEvents(instance, latestBlock);
-          }
+
+          // Guard: if the stored cursor is at or beyond the chain head the RPC
+          // node knows about (can happen after switching RPC endpoints or when
+          // hitting a load-balanced pool where nodes are at different heights),
+          // skip this cycle instead of querying a block range the node can't serve.
+          if (instance.lastProcessedBlock >= latestBlock) continue;
+
+          await this.pollContractEvents(instance, latestBlock);
         }
       } catch (error) {
         this.logger.error("Error in polling service", error);
@@ -375,6 +380,14 @@ export class ContractManagerService {
     // subsequent event types to start at latestBlock+1 and their while-loops to
     // never execute — meaning only the first event type was ever polled.
     const startBlock = instance.lastProcessedBlock + 1;
+
+    // If the stored cursor is already at or past the chain head, nothing to do.
+    if (startBlock > latestBlock) {
+      this.logger.debug(
+        `Skipping poll for ${config.contractName}: startBlock ${startBlock} > latestBlock ${latestBlock}`,
+      );
+      return;
+    }
 
     // Track the earliest block where any event type encountered an error so we
     // can avoid advancing lastProcessedBlock past an unprocessed range.
@@ -412,14 +425,27 @@ export class ContractManagerService {
             // Small delay to avoid overwhelming the RPC provider
             await new Promise((resolve) => setTimeout(resolve, 100));
           } catch (error) {
+            const errMsg = error?.message || String(error);
             this.logger.error(
               `Error polling ${eventConfig.eventName} events for blocks ${currentBlock}-${toBlock}`,
-              error
             );
+            this.logger.error(errMsg);
+
             // Record the first block that failed so we don't advance past it.
             if (firstFailedBlock === null || currentBlock < firstFailedBlock) {
               firstFailedBlock = currentBlock;
             }
+
+            // If the RPC says the block range is beyond the chain head, stop
+            // polling entirely for this event — subsequent batches will fail too.
+            if (errMsg.includes('beyond current head block') || errMsg.includes('block range')) {
+              this.logger.warn(
+                `RPC reports blocks ${currentBlock}-${toBlock} beyond chain head. ` +
+                `Will retry on next poll cycle.`,
+              );
+              break;
+            }
+
             // Skip only the failed batch, not 50 000 blocks.
             currentBlock = toBlock + 1;
           }

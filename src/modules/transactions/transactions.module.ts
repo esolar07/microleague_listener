@@ -1,12 +1,11 @@
 import { Module } from "@nestjs/common";
 import { TransactionsService } from "./transactions.service";
 import { TransactionsController } from "./transactions.controller";
-import { JwtService } from "@nestjs/jwt";
-import { UserService } from "../user/user.service";
+import { AuthModule } from "../auth/auth.module";
 
 @Module({
-    imports: [],
-    controllers: [TransactionsController],
-    providers: [TransactionsService, JwtService, UserService],
+  imports: [AuthModule],
+  controllers: [TransactionsController],
+  providers: [TransactionsService],
 })
-export class TransactionsModule { }
+export class TransactionsModule {}
