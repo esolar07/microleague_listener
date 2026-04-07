@@ -197,7 +197,7 @@ export class EmailService {
         <div class="detail-row"><span class="detail-label">Transaction Reference:</span><span class="detail-value">${txRef}</span></div>
         <div class="detail-row"><span class="detail-label">Date:</span><span class="detail-value">${date}</span></div>
         <div class="detail-row"><span class="detail-label">Wallet Address:</span><span class="detail-value" style="font-family:monospace;font-size:12px">${walletAddress}</span></div>
-        <div class="detail-row"><span class="detail-label">Transaction Hash:</span><span class="detail-value" style="font-family:monospace;font-size:12px">${txHash}</span></div>
+        <div class="detail-row"><span class="detail-label">Transaction Hash:</span><span class="detail-value" style="font-family:monospace;font-size:12px;word-break:break-all">${txHash}</span></div>
         <div class="detail-row"><span class="detail-label">Amount Paid:</span><span class="detail-value">$${amount.toFixed(2)} USD</span></div>
         <div class="detail-row"><span class="detail-label">Tokens Allocated:</span><span class="detail-value" style="color:#667eea;font-weight:700">${tokens.toLocaleString()} MLC</span></div>
         <div class="detail-row"><span class="detail-label">Price per Token:</span><span class="detail-value">$0.01</span></div>
