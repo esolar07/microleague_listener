@@ -1,32 +1,32 @@
 // handlers/presale-buy.handler.ts
-import { Injectable } from "@nestjs/common";
-import { formatEther, JsonRpcProvider } from "ethers";
+import { Injectable } from '@nestjs/common';
+import { formatEther, JsonRpcProvider } from 'ethers';
 
-import { BaseEventHandler } from "./base-event.handler";
-import { ContractEventConfig } from "../config/listener.config";
-import { PrismaService } from "src/prisma/prisma.service";
-import { PresaleTxType } from "@prisma/client";
-import { EmailService } from "../services/email.service";
-import { PdfService } from "../services/pdf.service";
+import { BaseEventHandler } from './base-event.handler';
+import { ContractEventConfig } from '../config/listener.config';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { PresaleTxType } from '@prisma/client';
+import { EmailService } from '../services/email.service';
+import { PdfService } from '../services/pdf.service';
 
 @Injectable()
 export class PresaleBuyHandler extends BaseEventHandler {
   constructor(
     protected readonly prisma: PrismaService,
     private readonly emailService: EmailService,
-    private readonly pdfService: PdfService
+    private readonly pdfService: PdfService,
   ) {
     super(prisma);
   }
 
   getEventName(): string {
-    return "Bought";
+    return 'Bought';
   }
 
   async handle(
     event: any,
     contractConfig: ContractEventConfig,
-    provider: JsonRpcProvider
+    provider: JsonRpcProvider,
   ): Promise<void> {
     try {
       const eventId = `${contractConfig.contractAddress.toLowerCase()}-${this.getEventName()}-${event.transactionHash}-${event.index}`;
@@ -39,26 +39,14 @@ export class PresaleBuyHandler extends BaseEventHandler {
       const block = await provider.getBlock(event.blockNumber);
       const timestamp = block.timestamp;
 
-      const {
-        buyer,
-        paymentToken,
-        paymentAmount,
-        tokenAmount,
-        stageId,
-        usdValue,
-      } = event.args;
+      const { buyer, paymentToken, paymentAmount, tokenAmount, stageId, usdValue } = event.args;
 
       // Convert wei to readable format
-      const weiToEth4 = (wei: bigint | string) =>
-        Number(Number(formatEther(wei)).toFixed(6));
+      const weiToEth4 = (wei: bigint | string) => Number(Number(formatEther(wei)).toFixed(6));
 
       const tokens = weiToEth4(tokenAmount);
       const amount = weiToEth4(paymentAmount);
-      const usdAmount = weiToEth4(usdValue);
-
-      console.log(tokens);
-      console.log(amount);
-      console.log(usdAmount);
+      let usdAmount = weiToEth4(usdValue);
 
       // First, ensure user exists (create/update buyer aggregate)
       const now = new Date();
@@ -115,8 +103,8 @@ export class PresaleBuyHandler extends BaseEventHandler {
         await this.prisma.recentActivity.create({
           data: {
             walletAddress: buyer.toLowerCase(),
-            action: "Purchased MLC",
-            activityType: "Buy",
+            action: 'Purchased MLC',
+            activityType: 'Buy',
             amount: tokens,
             usdAmount,
             txHash: event.transactionHash,
@@ -124,27 +112,40 @@ export class PresaleBuyHandler extends BaseEventHandler {
           },
         });
       } catch (err) {
-        this.logger.error("Failed to create activity record for Buy event", err);
+        this.logger.error('Failed to create activity record for Buy event', err);
       }
 
       // Read stage data from contract for vesting info
       let cliffSeconds = 0;
       let durationSeconds = 0;
       let releaseIntervalSeconds = 0;
+      let tokenPrice = 0;
       try {
-        const { Contract } = await import("ethers");
+        const { Contract } = await import('ethers');
         const contract = new Contract(
           contractConfig.contractAddress,
           [
-            "function getStage(uint256 id) view returns (tuple(uint256 price, uint256 offeredAmount, uint256 soldAmount, uint256 minBuyTokens, uint256 maxBuyTokens, uint256 startTime, uint256 endTime, uint256 cliff, uint256 duration, uint256 releaseInterval, bool whitelistOnly))",
+            'function getStage(uint256 id) view returns (tuple(uint256 price, uint256 offeredAmount, uint256 soldAmount, uint256 minBuyTokens, uint256 maxBuyTokens, uint256 startTime, uint256 endTime, uint256 cliff, uint256 duration, uint256 releaseInterval, bool whitelistOnly))',
           ],
-          provider
+          provider,
         );
         const stage = await contract.getStage(stageId);
         cliffSeconds = Number(stage.cliff);
         durationSeconds = Number(stage.duration);
         releaseIntervalSeconds = Number(stage.releaseInterval);
-      } catch (err) {
+        tokenPrice = weiToEth4(stage.price);
+
+        // Recalculate USD from token price whenever stage price is available.
+        if (tokenPrice > 0) {
+          const computedUsd = Number((tokens * tokenPrice).toFixed(6));
+          if (Math.abs(computedUsd - usdAmount) > 0.00001) {
+            this.logger.debug(
+              `Recalculating usdAmount from price: tokens=${tokens}, tokenPrice=${tokenPrice}, originalUsd=${usdAmount}, computedUsd=${computedUsd}`,
+            );
+          }
+          usdAmount = computedUsd;
+        }
+      } catch (err: Error | any) {
         this.logger.warn(`Could not read stage data for vesting info: ${err.message}`);
       }
 
@@ -155,7 +156,7 @@ export class PresaleBuyHandler extends BaseEventHandler {
         usdAmount,
         tokens,
         timestamp,
-        { cliffSeconds, durationSeconds, releaseIntervalSeconds }
+        { cliffSeconds, durationSeconds, releaseIntervalSeconds },
       );
 
       // Mark as processed only after all DB writes succeed
@@ -164,14 +165,14 @@ export class PresaleBuyHandler extends BaseEventHandler {
         this.getEventName(),
         event.blockNumber,
         event.transactionHash,
-        event.index
+        event.index,
       );
 
       this.logger.log(
-        `Presale Bought processed: buyer=${buyer}, tokenAmount=${tokenAmount.toString?.() ?? tokenAmount}, paymentAmount=${paymentAmount.toString?.() ?? paymentAmount}`
+        `Presale Bought processed: buyer=${buyer}, tokenAmount=${tokenAmount.toString?.() ?? tokenAmount}, paymentAmount=${paymentAmount.toString?.() ?? paymentAmount}`,
       );
     } catch (error) {
-      this.logger.error("Error handling Presale Buy event", error);
+      this.logger.error('Error handling Presale Buy event', error);
       throw error;
     }
   }
@@ -182,17 +183,19 @@ export class PresaleBuyHandler extends BaseEventHandler {
     amount: number,
     tokens: number,
     timestamp: number,
-    vesting: { cliffSeconds: number; durationSeconds: number; releaseIntervalSeconds: number }
+    vesting: { cliffSeconds: number; durationSeconds: number; releaseIntervalSeconds: number },
   ): Promise<void> {
     try {
       // Generate transaction reference
       const txRef = `MLC-${Date.now().toString(36).toUpperCase()}`;
-      
+
       // Try to get user email from UserProfile through Wallet
       const userEmail = await this.getUserEmail(walletAddress);
-      
+
       if (!userEmail) {
-        this.logger.warn(`No email found for wallet ${walletAddress}. SAFT certificate will not be sent.`);
+        this.logger.warn(
+          `No email found for wallet ${walletAddress}. SAFT certificate will not be sent.`,
+        );
         return;
       }
 
@@ -204,7 +207,7 @@ export class PresaleBuyHandler extends BaseEventHandler {
         tokens,
         txRef,
         userEmail,
-        vesting
+        vesting,
       );
 
       // Send email with PDF attachment
@@ -216,7 +219,7 @@ export class PresaleBuyHandler extends BaseEventHandler {
         tokens,
         txRef,
         localPath,
-        vesting
+        vesting,
       );
 
       if (emailSent) {
@@ -230,8 +233,8 @@ export class PresaleBuyHandler extends BaseEventHandler {
         await this.prisma.recentActivity.create({
           data: {
             walletAddress: walletAddress.toLowerCase(),
-            action: "SAFT Certificate Sent",
-            activityType: "Buy",
+            action: 'SAFT Certificate Sent',
+            activityType: 'Buy',
             amount: tokens,
             usdAmount: amount,
             txHash: txHash,
@@ -240,13 +243,13 @@ export class PresaleBuyHandler extends BaseEventHandler {
               txRef: txRef,
               cloudinaryUrl: cloudinaryUrl || null,
               emailSent,
-              sentAt: new Date().toISOString()
+              sentAt: new Date().toISOString(),
             },
             timestamp: new Date(timestamp * 1000),
           },
         });
       } catch (err) {
-        this.logger.error("Failed to create SAFT activity record", err);
+        this.logger.error('Failed to create SAFT activity record', err);
       }
     } catch (error) {
       this.logger.error(`Error sending SAFT certificate: ${error.message}`, error.stack);
@@ -263,10 +266,10 @@ export class PresaleBuyHandler extends BaseEventHandler {
         include: {
           User: {
             include: {
-              UserProfile: true
-            }
-          }
-        }
+              UserProfile: true,
+            },
+          },
+        },
       });
 
       if (wallet?.User?.UserProfile?.email) {
@@ -279,8 +282,8 @@ export class PresaleBuyHandler extends BaseEventHandler {
           OR: [
             { email: { contains: walletAddress, mode: 'insensitive' } },
             // Add other lookup methods if needed
-          ]
-        }
+          ],
+        },
       });
 
       return userProfile?.email || null;
