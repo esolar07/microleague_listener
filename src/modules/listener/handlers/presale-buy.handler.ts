@@ -251,7 +251,7 @@ export class PresaleBuyHandler extends BaseEventHandler {
       } catch (err) {
         this.logger.error('Failed to create SAFT activity record', err);
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Error sending SAFT certificate: ${error.message}`, error.stack);
       // Don't throw error here - we don't want to fail the entire event processing
       // just because email sending failed
@@ -264,20 +264,30 @@ export class PresaleBuyHandler extends BaseEventHandler {
       const wallet = await this.prisma.wallet.findFirst({
         where: { address: walletAddress.toLowerCase() },
         include: {
-          user: {
+          User: {
             include: {
-              profile: true,
+              UserProfile: true,
             },
           },
         },
       });
 
-      if (wallet?.user?.profile?.email) {
-        return wallet.user.profile.email;
+      if (wallet?.User?.UserProfile?.email) {
+        return wallet.User.UserProfile.email;
       }
 
-      return null;
-    } catch (error) {
+      // Alternative: Check if email is stored directly somewhere else
+      const userProfile = await this.prisma.userProfile.findFirst({
+        where: {
+          OR: [
+            { email: { contains: walletAddress, mode: 'insensitive' } },
+            // Add other lookup methods if needed
+          ],
+        },
+      });
+
+      return userProfile?.email || null;
+    } catch (error: any) {
       this.logger.error(`Error getting user email for wallet ${walletAddress}: ${error.message}`);
       return null;
     }
