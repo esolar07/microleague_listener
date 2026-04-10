@@ -13,8 +13,8 @@
 require('dotenv').config();
 const postgres = require('postgres');
 
-const DIRECT_URL =
-  process.env.DIRECT_URL ||
+const DIRECT_DATABASE_URL =
+  process.env.DIRECT_DATABASE_URL ||
   'postgres://490f73d790bde6bc90d64743834599f59ec337bca3d5060a775007b1ce64a699:sk_o5jtaQcJ-poIipnIRvmR1@db.prisma.io:5432/postgres?sslmode=require';
 
 const args = process.argv.slice(2);
@@ -36,7 +36,7 @@ console.log('  name      :', firstName, lastName);
 console.log('  superAdmin:', superAdmin);
 
 async function main() {
-  const sql = postgres(DIRECT_URL, { ssl: 'require' });
+  const sql = postgres(DIRECT_DATABASE_URL, { ssl: 'require' });
 
   try {
     const result = await sql`
