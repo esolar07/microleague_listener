@@ -264,29 +264,19 @@ export class PresaleBuyHandler extends BaseEventHandler {
       const wallet = await this.prisma.wallet.findFirst({
         where: { address: walletAddress.toLowerCase() },
         include: {
-          User: {
+          user: {
             include: {
-              UserProfile: true,
+              profile: true,
             },
           },
         },
       });
 
-      if (wallet?.User?.UserProfile?.email) {
-        return wallet.User.UserProfile.email;
+      if (wallet?.user?.profile?.email) {
+        return wallet.user.profile.email;
       }
 
-      // Alternative: Check if email is stored directly somewhere else
-      const userProfile = await this.prisma.userProfile.findFirst({
-        where: {
-          OR: [
-            { email: { contains: walletAddress, mode: 'insensitive' } },
-            // Add other lookup methods if needed
-          ],
-        },
-      });
-
-      return userProfile?.email || null;
+      return null;
     } catch (error: any) {
       this.logger.error(`Error getting user email for wallet ${walletAddress}: ${error.message}`);
       return null;
