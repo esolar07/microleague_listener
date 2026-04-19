@@ -53,7 +53,9 @@ export class PdfService {
         doc.pipe(stream);
 
         const date = new Date().toLocaleDateString('en-US', {
-          year: 'numeric', month: 'long', day: 'numeric',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
         });
         const pricePerToken = tokens > 0 ? usdAmount / tokens : 0.01;
 
@@ -71,84 +73,151 @@ export class PdfService {
         const cliffDisplay = fmtDur(vesting?.cliffSeconds ?? 0);
         const durationDisplay = fmtDur(vesting?.durationSeconds ?? 0);
         const releaseDisplay = fmtDur(vesting?.releaseIntervalSeconds ?? 0);
-        const numReleases = (vesting?.releaseIntervalSeconds && vesting?.durationSeconds)
-          ? Math.floor(vesting.durationSeconds / vesting.releaseIntervalSeconds)
-          : 0;
+        const numReleases =
+          vesting?.releaseIntervalSeconds && vesting?.durationSeconds
+            ? Math.floor(vesting.durationSeconds / vesting.releaseIntervalSeconds)
+            : 0;
         const unlockPct = numReleases > 0 ? Math.round(100 / numReleases) : 100;
 
         // ── Header band ──
-        doc.rect(0, 0, this.PAGE_W, 100).fill('#667eea');
-        doc.font('Helvetica-Bold').fontSize(22).fillColor('#ffffff')
-           .text('MicroLeague', this.MARGIN, 30, { width: 300 });
-        doc.font('Helvetica').fontSize(11)
-           .text('TECHNOLOGIES LTD', this.MARGIN, 55, { width: 300 });
-        doc.font('Helvetica').fontSize(9).fillColor('#ffffffcc')
-           .text(`Ref: ${txRef}`, 0, 35, { width: this.PAGE_W - this.MARGIN, align: 'right' })
-           .text(date, 0, 48, { width: this.PAGE_W - this.MARGIN, align: 'right' });
+        doc.rect(0, 0, this.PAGE_W, 104).fill('#667eea');
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(24)
+          .fillColor('#ffffff')
+          .text('MicroLeague', this.MARGIN, 30, { width: 320 });
+        doc
+          .font('Helvetica')
+          .fontSize(11)
+          .text('TECHNOLOGIES LTD', this.MARGIN, 58, { width: 320 });
+        doc
+          .font('Helvetica')
+          .fontSize(9)
+          .fillColor('#ffffffcc')
+          .text(`Ref: ${txRef}`, 0, 34, { width: this.PAGE_W - this.MARGIN, align: 'right' })
+          .text(date, 0, 52, { width: this.PAGE_W - this.MARGIN, align: 'right' });
+
+        doc.save();
+        // doc.roundedRect(this.MARGIN, 92, this.CONTENT_W, 4, 2).fill('#764ba2');
+        doc.restore();
 
         // ── Title ──
-        doc.y = 112;
-        doc.font('Helvetica-Bold').fontSize(20).fillColor('#333333')
-           .text('SAFT CERTIFICATE', this.MARGIN, doc.y, { width: this.CONTENT_W, align: 'center' });
+        doc.y = 118;
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(20)
+          .fillColor('#2c3e50')
+          .text('SAFT CERTIFICATE', this.MARGIN, doc.y, { width: this.CONTENT_W, align: 'center' });
+        doc.y += 24;
+        doc
+          .font('Helvetica')
+          .fontSize(9.5)
+          .fillColor('#8892a6')
+          .text('Simple Agreement for Future Tokens', this.MARGIN, doc.y, {
+            width: this.CONTENT_W,
+            align: 'center',
+          });
 
-        // ── Subtitle block (grouped together, no divider splitting them) ──
-        doc.y += 30;
-        doc.font('Helvetica').fontSize(10).fillColor('#888888')
-           .text('Simple Agreement for Future Tokens', this.MARGIN, doc.y, { width: this.CONTENT_W, align: 'center' });
-
-        // ── Thin divider ──
+        // ── Title underline ──
         doc.y += 18;
-        this.line(doc, doc.y);
+        this.line(doc, doc.y, '#d8e2ef');
 
-        doc.y += 10;
-        doc.font('Helvetica-Bold').fontSize(11).fillColor('#333333')
-           .text('CERTIFICATE OF PURCHASE', this.MARGIN, doc.y, { width: this.CONTENT_W, align: 'center' });
-        doc.y += 16;
-        doc.font('Helvetica').fontSize(9).fillColor('#555555')
-           .text(
-             'This document certifies the purchase of MicroLeague Coin (MLC) tokens under the terms of the MicroLeague Presale Phase 1.',
-             this.MARGIN, doc.y, { width: this.CONTENT_W, align: 'center' },
-           );
+        // ── Summary block ──
+        doc.y += 18;
+        const summaryTop = doc.y;
+        const summaryHeight = 68;
+        doc
+          .roundedRect(this.MARGIN, summaryTop, this.CONTENT_W, summaryHeight, 12)
+          .fill('#f4f7ff')
+          .strokeColor('#d8e2ef')
+          .lineWidth(1)
+          .stroke();
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(11)
+          .fillColor('#2c3e50')
+          .text('CERTIFICATE OF PURCHASE', this.MARGIN + 14, summaryTop + 12, {
+            width: this.CONTENT_W - 28,
+          });
+        doc
+          .font('Helvetica')
+          .fontSize(9)
+          .fillColor('#5e6d82')
+          .text(
+            'This document certifies the purchase of MicroLeague Coin (MLC) tokens under the terms of the MicroLeague Presale Phase 1.',
+            this.MARGIN + 14,
+            summaryTop + 30,
+            { width: this.CONTENT_W - 28, align: 'left' },
+          );
 
-        // ── Details table ──
-        doc.y += 22;
-        this.line(doc, doc.y);
-        doc.y += 8;
+        doc.y = summaryTop + summaryHeight + 18;
 
         const shortHash = `${txHash.slice(0, 22)}...${txHash.slice(-8)}`;
         const shortWallet = `${walletAddress.slice(0, 22)}...${walletAddress.slice(-8)}`;
 
-        const rows: [string, string][] = [
+        const leftRows: [string, string][] = [
           ['Purchaser Wallet', shortWallet],
           ['Transaction Hash', shortHash],
           ['Purchaser Email', email || 'Not provided'],
           ['Date of Purchase', date],
+        ];
+        const rightRows: [string, string][] = [
           ['Amount Paid', `$${usdAmount.toFixed(2)} USD`],
           ['Tokens Allocated', `${tokens.toLocaleString()} MLC`],
           ['Price per Token', `$${pricePerToken.toFixed(4)}`],
         ];
 
-        const labelX = this.MARGIN;
-        const valueX = this.MARGIN + 160;
-        const valueW = this.CONTENT_W - 160;
+        const detailsTop = doc.y;
+        const detailCardHeight = 120;
+        doc
+          .roundedRect(this.MARGIN, detailsTop, this.CONTENT_W, detailCardHeight, 12)
+          .fill('#ffffff')
+          .strokeColor('#e3ebff')
+          .lineWidth(1)
+          .stroke();
+        doc
+          .roundedRect(this.MARGIN + 6, detailsTop + 6, 8, detailCardHeight - 12, 4)
+          .fill('#667eea');
 
-        rows.forEach(([label, value]) => {
-          const y = doc.y;
-          doc.font('Helvetica-Bold').fontSize(9).fillColor('#666666')
-             .text(label, labelX, y, { width: 155 });
-          doc.font('Helvetica').fontSize(9).fillColor('#222222')
-             .text(value, valueX, y, { width: valueW });
-          doc.y = y + 18;
-          this.line(doc, doc.y - 4, '#f0f0f0');
+        let leftY = detailsTop + 16;
+        leftRows.forEach(([label, value]) => {
+          doc
+            .font('Helvetica-Bold')
+            .fontSize(9)
+            .fillColor('#4b5a77')
+            .text(label, this.MARGIN + 20, leftY, { width: 160 });
+          doc
+            .font('Helvetica')
+            .fontSize(9)
+            .fillColor('#1f2a44')
+            .text(value, this.MARGIN + 20, leftY + 10, { width: 160 });
+          leftY += 30;
         });
 
-        // ── Vesting Schedule ──
-        doc.y += 10;
-        doc.font('Helvetica-Bold').fontSize(11).fillColor('#333333')
-           .text('VESTING SCHEDULE', this.MARGIN, doc.y);
-        doc.y += 4;
-        this.line(doc, doc.y);
-        doc.y += 8;
+        let rightY = detailsTop + 16;
+        rightRows.forEach(([label, value]) => {
+          doc
+            .font('Helvetica-Bold')
+            .fontSize(9)
+            .fillColor('#4b5a77')
+            .text(label, this.MARGIN + 240, rightY, { width: 145 });
+          doc
+            .font('Helvetica')
+            .fontSize(9)
+            .fillColor('#1f2a44')
+            .text(value, this.MARGIN + 240, rightY + 10, { width: 140 });
+          rightY += 30;
+        });
+
+        doc.y = detailsTop + detailCardHeight + 18;
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(11)
+          .fillColor('#2c3e50')
+          .text('VESTING SCHEDULE', this.MARGIN, doc.y);
+        doc.y += 6;
+        this.line(doc, doc.y, '#d8e2ef');
+        doc.y += 12;
 
         const schedule: [string, string][] = [
           ['Cliff Period', `${cliffDisplay} from purchase date`],
@@ -158,21 +227,38 @@ export class PdfService {
           ['Subsequent Unlocks', `${unlockPct}% every ${releaseDisplay}`],
         ];
 
+        const scheduleTop = doc.y;
+        const scheduleHeight = schedule.length * 16 + 18;
+        doc
+          .roundedRect(this.MARGIN, scheduleTop, this.CONTENT_W, scheduleHeight, 12)
+          .fill('#f4f7ff')
+          .strokeColor('#d8e2ef')
+          .lineWidth(1)
+          .stroke();
+        doc.y = scheduleTop + 12;
+
         schedule.forEach(([label, detail]) => {
-          doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#555555')
-             .text(`•  ${label}: `, this.MARGIN + 10, doc.y, { continued: true })
-             .font('Helvetica').fillColor('#333333')
-             .text(detail);
-          doc.y += 2;
+          const y = doc.y;
+          doc
+            .font('Helvetica-Bold')
+            .fontSize(9)
+            .fillColor('#4b5a77')
+            .text(`•  ${label}:`, this.MARGIN + 14, y, { continued: true })
+            .font('Helvetica')
+            .fillColor('#1f2a44')
+            .text(` ${detail}`);
+          doc.y = y + 16;
         });
 
-        // ── Terms ──
-        doc.y += 14;
-        doc.font('Helvetica-Bold').fontSize(11).fillColor('#333333')
-           .text('TERMS AND CONDITIONS', this.MARGIN, doc.y);
-        doc.y += 4;
-        this.line(doc, doc.y);
-        doc.y += 8;
+        doc.y = scheduleTop + scheduleHeight + 18;
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(11)
+          .fillColor('#2c3e50')
+          .text('TERMS AND CONDITIONS', this.MARGIN, doc.y);
+        doc.y += 6;
+        this.line(doc, doc.y, '#d8e2ef');
+        doc.y += 12;
 
         const terms = [
           'This SAFT certificate represents a Simple Agreement for Future Tokens for MicroLeague Coin (MLC).',
@@ -184,18 +270,31 @@ export class PdfService {
         ];
 
         terms.forEach((t) => {
-          doc.font('Helvetica').fontSize(7.5).fillColor('#777777')
-             .text(`•  ${t}`, this.MARGIN + 10, doc.y, { width: this.CONTENT_W - 20 });
-          doc.y += 2;
+          doc
+            .font('Helvetica')
+            .fontSize(7.5)
+            .fillColor('#5e6d82')
+            .text(`•  ${t}`, this.MARGIN + 12, doc.y, { width: this.CONTENT_W - 20 });
+          doc.y += 10;
         });
 
-        // ── Footer ──
-        doc.y += 20;
-        this.line(doc, doc.y);
+        doc.y += 6;
+        this.line(doc, doc.y, '#d8e2ef');
         doc.y += 10;
-        doc.font('Helvetica').fontSize(7).fillColor('#aaaaaa')
-           .text('MicroLeague Technologies Ltd  •  support@microleague.com  •  microleague.com', this.MARGIN, doc.y, { width: this.CONTENT_W, align: 'center' })
-           .text(`Generated: ${new Date().toLocaleString()}  •  This is an electronically generated document.`, { width: this.CONTENT_W, align: 'center' });
+        doc
+          .font('Helvetica')
+          .fontSize(7)
+          .fillColor('#9aa3b3')
+          .text(
+            'MicroLeague Technologies Ltd  •  support@microleague.com  •  microleague.com',
+            this.MARGIN,
+            doc.y,
+            { width: this.CONTENT_W, align: 'center' },
+          )
+          .text(
+            `Generated: ${new Date().toLocaleString()}  •  This is an electronically generated document.`,
+            { width: this.CONTENT_W, align: 'center' },
+          );
 
         doc.end();
 
@@ -220,9 +319,12 @@ export class PdfService {
   }
 
   private line(doc: PDFKit.PDFDocument, y: number, color = '#e0e0e0') {
-    doc.moveTo(this.MARGIN, y)
-       .lineTo(this.PAGE_W - this.MARGIN, y)
-       .lineWidth(0.5).strokeColor(color).stroke();
+    doc
+      .moveTo(this.MARGIN, y)
+      .lineTo(this.PAGE_W - this.MARGIN, y)
+      .lineWidth(0.5)
+      .strokeColor(color)
+      .stroke();
   }
 
   private async uploadToCloudinary(filePath: string, txHash: string): Promise<string> {
