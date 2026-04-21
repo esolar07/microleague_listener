@@ -1,0 +1,146 @@
+# Prometheus Alert Rules for Blockchain Listener
+groups:
+  - name: blockchain_listener_alerts
+    interval: 30s
+    rules:
+      # High event failure rate
+      - alert: HighEventFailureRate
+        expr: rate(blockchain_events_failed_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          component: event_processor
+        annotations:
+          summary: "High event failure rate detected"
+          description: "Event failure rate is {{ $value | humanize }} events/sec for contract {{ $labels.contract }}"
+
+      # High processing lag
+      - alert: HighProcessingLag
+        expr: blockchain_processing_lag_blocks > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: block_processor
+        annotations:
+          summary: "High processing lag detected"
+          description: "Processing lag is {{ $value }} blocks behind for contract {{ $labels.contract }}"
+
+      # Critical processing lag
+      - alert: CriticalProcessingLag
+        expr: blockchain_processing_lag_blocks > 500
+        for: 5m
+        labels:
+          severity: critical
+          component: block_processor
+        annotations:
+          summary: "CRITICAL: Processing lag is very high"
+          description: "Processing lag is {{ $value }} blocks behind for contract {{ $labels.contract }}. System may be down."
+
+      # No events processed
+      - alert: NoEventsProcessed
+        expr: rate(blockchain_events_processed_total[10m]) == 0
+        for: 10m
+        labels:
+          severity: critical
+          component: event_processor
+        annotations:
+          summary: "No events processed in last 10 minutes"
+          description: "Listener may be stuck or down for contract {{ $labels.contract }}"
+
+      # Blockchain reorganization detected
+      - alert: ReorgDetected
+        expr: increase(blockchain_reorgs_detected_total[1h]) > 0
+        labels:
+          severity: warning
+          component: reorg_detector
+        annotations:
+          summary: "Blockchain reorganization detected"
+          description: "{{ $value }} reorgs detected in the last hour for contract {{ $labels.contract }}"
+
+      # High RPC call failure rate
+      - alert: HighRPCFailureRate
+        expr: rate(blockchain_rpc_calls_total{status="failed"}[5m]) / rate(blockchain_rpc_calls_total[5m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          component: rpc_provider
+        annotations:
+          summary: "High RPC call failure rate"
+          description: "RPC failure rate is {{ $value | humanizePercentage }} for provider {{ $labels.provider }}"
+
+      # No healthy RPC providers
+      - alert: NoHealthyProviders
+        expr: blockchain_healthy_providers == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: rpc_provider
+        annotations:
+          summary: "No healthy RPC providers available"
+          description: "All RPC providers are unhealthy. System cannot process events."
+
+      # Queue size too large
+      - alert: LargeEventQueue
+        expr: blockchain_event_queue_size{status="waiting"} > 1000
+        for: 10m
+        labels:
+          severity: warning
+          component: event_queue
+        annotations:
+          summary: "Event queue size is large"
+          description: "Queue has {{ $value }} waiting events. System may be falling behind."
+
+      # Critical queue size
+      - alert: CriticalEventQueue
+        expr: blockchain_event_queue_size{status="waiting"} > 10000
+        for: 5m
+        labels:
+          severity: critical
+          component: event_queue
+        annotations:
+          summary: "CRITICAL: Event queue size is very large"
+          description: "Queue has {{ $value }} waiting events. System is severely lagging."
+
+      # High event processing duration
+      - alert: SlowEventProcessing
+        expr: histogram_quantile(0.95, rate(blockchain_event_processing_duration_seconds_bucket[5m])) > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: event_processor
+        annotations:
+          summary: "Event processing is slow"
+          description: "95th percentile processing time is {{ $value }}s for {{ $labels.contract }}/{{ $labels.event }}"
+
+      # Application down
+      - alert: ListenerApplicationDown
+        expr: up{job="xhift-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: application
+        annotations:
+          summary: "Listener application is down"
+          description: "The blockchain listener application is not responding"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes / 1024 / 1024 / 1024) > 2
+        for: 10m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "High memory usage detected"
+          description: "Application is using {{ $value | humanize }}GB of memory"
+
+      # Event stuck in queue
+      - alert: EventsStuckInQueue
+        expr: blockchain_event_queue_size{status="active"} > 0 and rate(blockchain_events_processed_total[5m]) == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: event_queue
+        annotations:
+          summary: "Events stuck in processing"
+          description: "{{ $value }} events are active but nothing is being processed"

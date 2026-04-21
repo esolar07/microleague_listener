@@ -1,0 +1,33 @@
+# Prometheus Configuration for Local Setup (No Docker)
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'xhift-blockchain-listener'
+    environment: 'production'
+
+# Alertmanager configuration (optional - comment out if not using)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['localhost:9093']
+
+# Load alert rules (optional - comment out if file doesn't exist)
+# rule_files:
+#   - 'alerts.yml'
+
+# Scrape configurations
+scrape_configs:
+  # NestJS Application Metrics
+  - job_name: 'xhift-backend'
+    static_configs:
+      - targets: ['localhost:3000']
+    metrics_path: '/listener/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 10s
