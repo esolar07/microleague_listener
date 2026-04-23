@@ -1,6 +1,6 @@
 // email.service.ts
 import { Injectable, Logger } from '@nestjs/common';
-import * as FormData from 'form-data';
+import FormData from 'form-data';
 import * as fs from 'fs';
 import * as https from 'https';
 import * as http from 'http';
