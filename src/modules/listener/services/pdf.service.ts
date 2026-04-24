@@ -1,6 +1,6 @@
 // pdf.service.ts
 import { Injectable, Logger } from '@nestjs/common';
-import * as PDFDocument from 'pdfkit';
+import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import * as path from 'path';
 import { v2 as cloudinaryV2 } from 'cloudinary';

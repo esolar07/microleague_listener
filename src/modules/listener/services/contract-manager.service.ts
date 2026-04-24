@@ -175,8 +175,8 @@ export class ContractManagerService {
         );
 
         let currentBlock = lastProcessedBlock;
-        // Use larger batch size for faster scanning (up to 5000 blocks)
-        const batchSize = Math.min(eventConfig.batchSize * 50 || 5000, 5000);
+        // Cap at 500 blocks — the RPC provider's hard limit per eth_getLogs call
+        const batchSize = Math.min(eventConfig.batchSize || 100, 500);
         let totalEventsFound = 0;
 
         this.logger.log(
@@ -206,29 +206,38 @@ export class ContractManagerService {
             // Shorter delay for faster processing (200ms instead of 500ms)
             await new Promise((resolve) => setTimeout(resolve, 200));
           } catch (error) {
-            // If batch is too large, retry with smaller batch
-            if (error.message?.includes('exceed maximum block range') || error.message?.includes('query returned more than')) {
+            const errMsg: string = error?.message || String(error);
+
+            // Node doesn't have history for this range — skip it entirely
+            if (errMsg.includes('pruned history unavailable') || errMsg.includes('missing trie node') || errMsg.includes('historical state unavailable')) {
+              this.logger.warn(
+                `[HISTORICAL] Pruned history at blocks ${currentBlock}-${toBlock} for ${eventConfig.eventName}, skipping range`
+              );
+              currentBlock = toBlock + 1;
+              await new Promise((resolve) => setTimeout(resolve, 200));
+            } else if (errMsg.includes('exceed maximum block range') || errMsg.includes('query returned more than') || errMsg.includes('Block range too large') || errMsg.includes('block range')) {
+              // Batch too large — retry with half the size
               this.logger.warn(
                 `[HISTORICAL] Batch too large for ${eventConfig.eventName}, retrying with smaller batch`
               );
               const smallerBatch = Math.floor(batchSize / 2);
-              const toBlock = Math.min(currentBlock + smallerBatch, latestBlock);
+              const smallToBlock = Math.min(currentBlock + smallerBatch, latestBlock);
 
               const events = await contract.queryFilter(
                 eventConfig.eventName,
                 currentBlock,
-                toBlock
+                smallToBlock
               );
 
               if (events.length > 0) {
                 totalEventsFound += events.length;
                 this.logger.log(
-                  `[HISTORICAL] Found ${events.length} ${eventConfig.eventName} events in blocks ${currentBlock}-${toBlock}`
+                  `[HISTORICAL] Found ${events.length} ${eventConfig.eventName} events in blocks ${currentBlock}-${smallToBlock}`
                 );
                 await this.processEvents(events, eventConfig, config);
               }
 
-              currentBlock = toBlock + 1;
+              currentBlock = smallToBlock + 1;
               await new Promise((resolve) => setTimeout(resolve, 200));
             } else {
               throw error;

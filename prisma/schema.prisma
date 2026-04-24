@@ -391,7 +391,6 @@ model Comment {
 
   @@index([matchUpId])
   @@index([tournamentId])
-  @@map("comments")
 }
 
 // ─── Presale Models ───────────────────────────────────────────────────────────
@@ -414,7 +413,6 @@ model PresaleUser {
   vestingSchedules VestingSchedule[]
 
   @@index([userId])
-  @@map("presale_users")
 }
 
 model PresaleTx {
@@ -436,7 +434,6 @@ model PresaleTx {
 
   @@index([address])
   @@index([type])
-  @@map("presale_txs")
 }
 
 model VestingSchedule {
@@ -457,7 +454,6 @@ model VestingSchedule {
 
   @@unique([walletAddress, scheduleId, contract])
   @@index([walletAddress])
-  @@map("vesting_schedules")
 }
 
 model BankTransfer {
@@ -481,7 +477,6 @@ model BankTransfer {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
-  @@map("bank_transfers")
 }
 
 model RecentActivity {
@@ -498,7 +493,6 @@ model RecentActivity {
 
   @@index([walletAddress])
   @@index([timestamp])
-  @@map("recent_activities")
 }
 
 // ─── Listener / Admin Models ──────────────────────────────────────────────────
@@ -512,7 +506,6 @@ model Admin {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  @@map("admins")
 }
 
 model ListenerState {
@@ -531,7 +524,6 @@ model ListenerState {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  @@map("listener_state")
 }
 
 model FailedEvent {
@@ -550,5 +542,4 @@ model FailedEvent {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  @@map("failed_events")
 }
