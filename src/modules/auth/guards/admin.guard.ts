@@ -42,7 +42,7 @@ export class AdminGuard implements CanActivate {
 
       // Check if user is admin
       const admin = await this.prisma.$queryRaw`
-        SELECT * FROM admins WHERE address = ${walletAddress} LIMIT 1
+        SELECT * FROM "Admin" WHERE address = ${walletAddress} LIMIT 1
       `;
 
       if (!admin || (Array.isArray(admin) && admin.length === 0)) {

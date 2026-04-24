@@ -40,7 +40,7 @@ async function main() {
 
   try {
     const result = await sql`
-      INSERT INTO admins (id, "firstName", "lastName", address, "superAdmin", "createdAt", "updatedAt")
+      INSERT INTO "Admin" (id, "firstName", "lastName", address, "superAdmin", "createdAt", "updatedAt")
       VALUES (gen_random_uuid()::text, ${firstName}, ${lastName}, ${normalized}, ${superAdmin}, NOW(), NOW())
       ON CONFLICT (address) DO UPDATE
         SET "firstName"  = EXCLUDED."firstName",
