@@ -1,5 +1,5 @@
--- Add stageId column to existing vesting_schedules table (created via db push, not migration)
-ALTER TABLE "vesting_schedules" ADD COLUMN IF NOT EXISTS "stageId" INTEGER NOT NULL DEFAULT 0;
+-- CreateTable (idempotent — table may already exist from db push)
+CREATE TABLE IF NOT EXISTS "vesting_schedules" (
     "id" TEXT NOT NULL,
     "walletAddress" TEXT NOT NULL,
     "scheduleId" INTEGER NOT NULL,
@@ -17,11 +17,22 @@ ALTER TABLE "vesting_schedules" ADD COLUMN IF NOT EXISTS "stageId" INTEGER NOT N
     CONSTRAINT "vesting_schedules_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "vesting_schedules_walletAddress_scheduleId_contract_key" ON "vesting_schedules"("walletAddress", "scheduleId", "contract");
+-- AddColumn (idempotent)
+DO $$ BEGIN
+    ALTER TABLE "vesting_schedules" ADD COLUMN "stageId" INTEGER NOT NULL DEFAULT 0;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
 
 -- CreateIndex
-CREATE INDEX "vesting_schedules_walletAddress_idx" ON "vesting_schedules"("walletAddress");
+CREATE UNIQUE INDEX IF NOT EXISTS "vesting_schedules_walletAddress_scheduleId_contract_key" ON "vesting_schedules"("walletAddress", "scheduleId", "contract");
 
--- AddForeignKey
-ALTER TABLE "vesting_schedules" ADD CONSTRAINT "vesting_schedules_walletAddress_fkey" FOREIGN KEY ("walletAddress") REFERENCES "presale_users"("walletAddress") ON DELETE RESTRICT ON UPDATE CASCADE;
+-- CreateIndex
+CREATE INDEX IF NOT EXISTS "vesting_schedules_walletAddress_idx" ON "vesting_schedules"("walletAddress");
+
+-- AddForeignKey (skip if presale_users table does not exist)
+DO $$ BEGIN
+    ALTER TABLE "vesting_schedules" ADD CONSTRAINT "vesting_schedules_walletAddress_fkey"
+        FOREIGN KEY ("walletAddress") REFERENCES "presale_users"("walletAddress")
+        ON DELETE RESTRICT ON UPDATE CASCADE;
+EXCEPTION WHEN undefined_table OR duplicate_object THEN NULL;
+END $$;

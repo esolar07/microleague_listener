@@ -1,5 +1,12 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
 generator client {
   provider = "prisma-client-js"
+  //   output   = "../generated/prisma"
 }
 
 datasource db {
@@ -7,53 +14,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Enums ────────────────────────────────────────────────────────────────────
-
 enum SportType {
   basketball
   baseball
   football
-}
-
-enum PresaleTxType {
-  Blockchain
-  Wert
-  Crypto_Payment
-  Bank_Transfer
-  Other_Cryptos
-  Card_Payment
-  Buy
-  Claim
-}
-
-enum BankTransferStatus {
-  Pending
-  Verified
-  Rejected
-}
-
-enum ActivityType {
-  Buy
-  Claim
-  Vesting_Created
-}
-
-// ─── Game / Matchup Models ────────────────────────────────────────────────────
-
-model Sports {
-  id            Int             @id @default(autoincrement())
-  name          SportType       @unique
-  MatchUp       MatchUp[]
-  ManagedSeason ManagedSeason[]
-}
-
-model MatchupSource {
-  id             Int             @id
-  name           String          @unique
-  description    String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  matchUpResults MatchUpResult[]
 }
 
 model MatchupOutcome {
@@ -63,15 +27,85 @@ model MatchupOutcome {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   seasonMatchups SeasonMatchup[]
+
+  @@map("matchup_outcomes")
 }
 
-model GameMode {
-  id          Int          @id
-  name        String       @unique
-  description String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  tournaments Tournament[]
+model Sports {
+  id            Int             @id @default(autoincrement())
+  name          SportType       @unique
+  MatchUp       MatchUp[]
+  ManagedSeason ManagedSeason[]
+
+  @@map("sports")
+}
+
+model MatchUp {
+  id                  Int                  @id @default(autoincrement())
+  sportId             Int
+  sport               Sports               @relation(fields: [sportId], references: [id])
+  homeTeamSeason      String
+  homeTeamName        String
+  awayTeamSeason      String
+  awayTeamName        String
+  matchUpResultId     Int?                 @unique
+  matchUpResult       MatchUpResult?       @relation(fields: [matchUpResultId], references: [id], onDelete: SetNull)
+  eraComparisonId     Int?
+  eraComparison       EraComparison?       @relation(fields: [eraComparisonId], references: [id])
+  slug                String?              @unique
+  ruleSet             String?
+  preview             Json?
+  simulationStatus    String               @default("pending")
+  userId              String?
+  user                User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  picks               UserPick[]
+  comments            Comment[]
+  followedSimulations FollowedSimulation[]
+  tournamentMatchup   TournamentMatchup?
+
+  @@index([sportId])
+  @@index([matchUpResultId])
+  @@index([eraComparisonId])
+  @@index([userId])
+  @@map("match_ups")
+}
+
+model MatchUpResult {
+  id                   Int                    @id @default(autoincrement())
+  simulation           Json
+  sourceId             Int                    @default(1)
+  source               MatchupSource          @relation(fields: [sourceId], references: [id])
+  slug                 String?                @unique
+  seoTitle             String?
+  seoDescription       String?
+  seoKeywords          String?
+  seoContent           String?
+  jsonLd               Json?
+  robots               String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  matchupResultArticle MatchupResultArticle[]
+  seasonMatchup        SeasonMatchup?
+  matchUp              MatchUp?
+  tournamentMatchup    TournamentMatchup?
+  followedSimulations  FollowedSimulation[]
+
+  @@index([sourceId])
+  @@map("match_up_results")
+}
+
+model MatchupResultArticle {
+  id              Int           @id @default(autoincrement())
+  matchupResultId Int
+  matchUpResult   MatchUpResult @relation(fields: [matchupResultId], references: [id], onDelete: Cascade)
+  matchupArticle  Json
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([matchupResultId])
+  @@map("matchup_result_articles")
 }
 
 model EraComparison {
@@ -88,6 +122,7 @@ model EraComparison {
   @@unique([sport, era1, era2])
   @@index([sport])
   @@index([era1, era2])
+  @@map("era_comparisons")
 }
 
 model ManagedSeason {
@@ -108,62 +143,7 @@ model ManagedSeason {
 
   @@index([sportId])
   @@index([eraComparisonId])
-}
-
-model MatchUp {
-  id              Int            @id @default(autoincrement())
-  sportId         Int
-  sport           Sports         @relation(fields: [sportId], references: [id])
-  homeTeamSeason  String
-  homeTeamName    String
-  awayTeamSeason  String
-  awayTeamName    String
-  matchUpResultId Int?           @unique
-  matchUpResult   MatchUpResult? @relation(fields: [matchUpResultId], references: [id], onDelete: SetNull)
-  eraComparisonId Int?
-  eraComparison   EraComparison? @relation(fields: [eraComparisonId], references: [id])
-  ruleSet         String?
-  userId          String?
-  user            User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  picks           UserPick[]
-  comments        Comment[]
-
-  @@index([sportId])
-  @@index([matchUpResultId])
-  @@index([eraComparisonId])
-  @@index([userId])
-}
-
-model MatchUpResult {
-  id                   Int                    @id @default(autoincrement())
-  simulation           Json
-  sourceId             Int                    @default(1)
-  source               MatchupSource          @relation(fields: [sourceId], references: [id])
-  slug                 String?                @unique
-  seoTitle             String?
-  seoDescription       String?
-  seoKeywords          String?
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
-  matchupResultArticle MatchupResultArticle[]
-  seasonMatchup        SeasonMatchup?
-  matchUp              MatchUp?
-  tournamentMatchup    TournamentMatchup?
-
-  @@index([sourceId])
-}
-
-model MatchupResultArticle {
-  id              Int           @id @default(autoincrement())
-  matchupResultId Int
-  matchUpResult   MatchUpResult @relation(fields: [matchupResultId], references: [id], onDelete: Cascade)
-  matchupArticle  Json
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  @@index([matchupResultId])
+  @@map("managed_seasons")
 }
 
 model SeasonMatchup {
@@ -186,37 +166,66 @@ model SeasonMatchup {
   @@index([managedSeasonId])
   @@index([matchUpResultId])
   @@index([outcomeId])
+  @@map("season_matchups")
+}
+
+model MatchupSource {
+  id             Int             @id
+  name           String          @unique
+  description    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  matchUpResults MatchUpResult[]
+
+  @@map("matchup_sources")
+}
+
+model GameMode {
+  id          Int          @id
+  name        String       @unique
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  tournaments Tournament[]
+
+  @@map("game_modes")
 }
 
 model Tournament {
-  id                 Int                 @id @default(autoincrement())
-  scenarioName       String              @unique
-  shareableSlug      String              @unique
+  id                 Int                  @id @default(autoincrement())
+  scenarioName       String               @unique
+  shareableSlug      String               @unique
   sport              SportType
   numberOfTeams      Int
-  gameModeId         Int                 @default(1)
-  gameMode           GameMode            @relation(fields: [gameModeId], references: [id])
-  status             String              @default("setup")
+  gameModeId         Int                  @default(1)
+  gameMode           GameMode             @relation(fields: [gameModeId], references: [id])
+  status             String               @default("setup")
   championTeamName   String?
   championTeamSeason String?
   ruleSet            String?
-  seoSlug            String?             @unique
+  preview            Json?
+  seoSlug            String?              @unique
   seoTitle           String?
   seoDescription     String?
   seoKeywords        String?
+  seoContent         String?
+  jsonLd             Json?
+  robots             String?
   userId             String?
-  user               User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  user               User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
   teams              TournamentTeam[]
   matchups           TournamentMatchup[]
   comments           Comment[]
+  followedBy         FollowedTournament[]
 
   @@index([shareableSlug])
   @@index([sport])
   @@index([status])
   @@index([userId])
   @@index([gameModeId])
+  @@map("tournaments")
 }
 
 model TournamentTeam {
@@ -235,6 +244,7 @@ model TournamentTeam {
   @@unique([tournamentId, seedPosition])
   @@index([tournamentId])
   @@index([seedPosition])
+  @@map("tournament_teams")
 }
 
 model TournamentMatchup {
@@ -251,10 +261,13 @@ model TournamentMatchup {
   winner              TournamentTeam?     @relation("Winner", fields: [winnerId], references: [id])
   matchUpResultId     Int?                @unique
   matchUpResult       MatchUpResult?      @relation(fields: [matchUpResultId], references: [id], onDelete: SetNull)
+  matchUpId           Int?                @unique
+  matchUp             MatchUp?            @relation(fields: [matchUpId], references: [id], onDelete: SetNull)
   advancesToMatchupId Int?
   advancesToMatchup   TournamentMatchup?  @relation("Advancement", fields: [advancesToMatchupId], references: [id])
   previousMatchups    TournamentMatchup[] @relation("Advancement")
   isCompleted         Boolean             @default(false)
+  preview             Json?
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
   picks               UserPick[]
@@ -265,10 +278,10 @@ model TournamentMatchup {
   @@index([awayTeamId])
   @@index([winnerId])
   @@index([matchUpResultId])
+  @@index([matchUpId])
   @@index([advancesToMatchupId])
+  @@map("tournament_matchups")
 }
-
-// ─── User / Auth Models ───────────────────────────────────────────────────────
 
 model UserType {
   id          Int      @id
@@ -277,8 +290,32 @@ model UserType {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   users       User[]
+
+  @@map("user_types")
 }
 
+model UserPick {
+  id                  Int                @id @default(autoincrement())
+  userId              String
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pick                String // 'home' or 'away'
+  matchUpId           Int?
+  matchUp             MatchUp?           @relation(fields: [matchUpId], references: [id], onDelete: Cascade)
+  tournamentMatchupId Int?
+  tournamentMatchup   TournamentMatchup? @relation(fields: [tournamentMatchupId], references: [id], onDelete: Cascade)
+  isCorrect           Boolean?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@unique([userId, matchUpId])
+  @@unique([userId, tournamentMatchupId])
+  @@index([userId])
+  @@index([matchUpId])
+  @@index([tournamentMatchupId])
+  @@map("user_picks")
+}
+
+// Authentication Models
 model WalletType {
   id          Int      @id
   name        String   @unique
@@ -286,27 +323,81 @@ model WalletType {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   wallets     Wallet[]
+
+  @@map("wallet_types")
 }
 
 model User {
-  id                  String        @id @default(uuid())
-  referralId          String        @unique
-  userTypeId          Int           @default(1)
-  userType            UserType      @relation(fields: [userTypeId], references: [id])
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  id                  String               @id @default(uuid())
+  referralId          String               @unique
+  userTypeId          Int                  @default(1)
+  userType            UserType             @relation(fields: [userTypeId], references: [id])
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
   wallets             Wallet[]
-  referralAsReferred  Referral?     @relation("ReferredUser")
-  referralsAsReferrer Referral[]    @relation("ReferrerUser")
+  referralAsReferred  Referral?            @relation("ReferredUser")
+  referralsAsReferrer Referral[]           @relation("ReferrerUser")
   tournaments         Tournament[]
   matchUps            MatchUp[]
   profile             UserProfile?
   picks               UserPick[]
   comments            Comment[]
   presaleUsers        PresaleUser[]
+  ssoTokens           SsoToken[]
+  followedSimulations FollowedSimulation[]
+  followedTournaments FollowedTournament[]
 
   @@index([referralId])
   @@index([userTypeId])
+  @@map("users")
+}
+
+model FollowedTournament {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tournamentId Int
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  lastViewedAt DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, tournamentId])
+  @@index([userId])
+  @@index([tournamentId])
+  @@map("followed_tournaments")
+}
+
+model FollowedSimulation {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matchUpId    Int
+  matchUp      MatchUp       @relation(fields: [matchUpId], references: [id], onDelete: Cascade)
+  simulationId Int
+  simulation   MatchUpResult @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  lastViewedAt DateTime?
+  createdAt    DateTime      @default(now())
+
+  @@unique([userId, simulationId])
+  @@index([userId])
+  @@index([matchUpId])
+  @@index([simulationId])
+  @@map("followed_simulations")
+}
+
+model SsoToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sso_tokens")
 }
 
 model UserProfile {
@@ -326,6 +417,8 @@ model UserProfile {
   twoFactor       Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@map("user_profiles")
 }
 
 model Referral {
@@ -340,6 +433,7 @@ model Referral {
 
   @@index([referrerUserId])
   @@index([isProcessed])
+  @@map("referrals")
 }
 
 model Wallet {
@@ -355,26 +449,7 @@ model Wallet {
   @@index([userId])
   @@index([walletTypeId])
   @@index([address])
-}
-
-model UserPick {
-  id                  Int                @id @default(autoincrement())
-  userId              String
-  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  pick                String
-  matchUpId           Int?
-  matchUp             MatchUp?           @relation(fields: [matchUpId], references: [id], onDelete: Cascade)
-  tournamentMatchupId Int?
-  tournamentMatchup   TournamentMatchup? @relation(fields: [tournamentMatchupId], references: [id], onDelete: Cascade)
-  isCorrect           Boolean?
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-
-  @@unique([userId, matchUpId])
-  @@unique([userId, tournamentMatchupId])
-  @@index([userId])
-  @@index([matchUpId])
-  @@index([tournamentMatchupId])
+  @@map("wallets")
 }
 
 model Comment {
@@ -391,14 +466,13 @@ model Comment {
 
   @@index([matchUpId])
   @@index([tournamentId])
+  @@map("comments")
 }
-
-// ─── Presale Models ───────────────────────────────────────────────────────────
 
 model PresaleUser {
   id              String    @id @default(cuid())
   walletAddress   String    @unique
-  userId          String?
+  userId          String? // optional link to User
   user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   tokensPurchased Float     @default(0)
   claimed         Float     @default(0)
@@ -406,13 +480,15 @@ model PresaleUser {
   amountSpent     Float     @default(0)
   joinDate        DateTime?
   lastActivity    DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
 
   presaleTxs       PresaleTx[]
   vestingSchedules VestingSchedule[]
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
+  @@map("presale_users")
 }
 
 model PresaleTx {
@@ -434,6 +510,7 @@ model PresaleTx {
 
   @@index([address])
   @@index([type])
+  @@map("presale_txs")
 }
 
 model VestingSchedule {
@@ -454,6 +531,57 @@ model VestingSchedule {
 
   @@unique([walletAddress, scheduleId, contract])
   @@index([walletAddress])
+  @@map("vesting_schedules")
+}
+
+model ListenerState {
+  id          String    @id @default(cuid())
+  contract    String
+  blockNumber Int
+  hash        String
+  logIndex    Int
+  processedAt DateTime
+  eventId     String    @unique
+  type        String
+  eventName   String
+  blockHash   String
+  reorged     Boolean   @default(false)
+  reorgedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("listener_states")
+}
+
+model FailedEvent {
+  id              String    @id @default(cuid())
+  eventId         String    @unique
+  contract        String
+  eventName       String
+  blockNumber     Int
+  transactionHash String
+  logIndex        Int
+  error           String
+  retryCount      Int       @default(0)
+  lastRetryAt     DateTime?
+  resolved        Boolean   @default(false)
+  resolvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("failed_events")
+}
+
+model Admin {
+  id         String   @id @default(cuid())
+  firstName  String
+  lastName   String
+  address    String   @unique
+  superAdmin Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("admins")
 }
 
 model BankTransfer {
@@ -477,6 +605,7 @@ model BankTransfer {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
+  @@map("bank_transfers")
 }
 
 model RecentActivity {
@@ -493,53 +622,28 @@ model RecentActivity {
 
   @@index([walletAddress])
   @@index([timestamp])
+  @@map("recent_activities")
 }
 
-// ─── Listener / Admin Models ──────────────────────────────────────────────────
-
-model Admin {
-  id         String   @id @default(cuid())
-  firstName  String
-  lastName   String
-  address    String   @unique
-  superAdmin Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
+enum PresaleTxType {
+  Blockchain
+  Wert
+  Crypto_Payment
+  Bank_Transfer
+  Other_Cryptos
+  Card_Payment
+  Buy
+  Claim
 }
 
-model ListenerState {
-  id          String    @id @default(cuid())
-  contract    String
-  blockNumber Int
-  hash        String
-  logIndex    Int
-  processedAt DateTime
-  eventId     String    @unique
-  type        String
-  eventName   String
-  blockHash   String
-  reorged     Boolean   @default(false)
-  reorgedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
+enum BankTransferStatus {
+  Pending
+  Verified
+  Rejected
 }
 
-model FailedEvent {
-  id              String    @id @default(cuid())
-  eventId         String    @unique
-  contract        String
-  eventName       String
-  blockNumber     Int
-  transactionHash String
-  logIndex        Int
-  error           String
-  retryCount      Int       @default(0)
-  lastRetryAt     DateTime?
-  resolved        Boolean   @default(false)
-  resolvedAt      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
+enum ActivityType {
+  Buy
+  Claim
+  Vesting_Created
 }
