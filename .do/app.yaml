@@ -1,0 +1,140 @@
+name: microleague-listener
+region: nyc
+
+databases:
+  - name: listener-db
+    engine: PG
+    version: "16"
+    size: db-s-dev-database
+    num_nodes: 1
+
+  - name: listener-redis
+    engine: REDIS
+    version: "7"
+    size: db-s-dev-database
+    num_nodes: 1
+
+services:
+  - name: listener
+    dockerfile_path: Dockerfile
+    github:
+      branch: main
+      deploy_on_push: true
+      # repo: your-org/microleague_listner   ← fill this in
+    http_port: 8080
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 30
+      period_seconds: 30
+      timeout_seconds: 10
+      success_threshold: 1
+      failure_threshold: 3
+    envs:
+      - key: NODE_ENV
+        value: production
+        scope: RUN_AND_BUILD_TIME
+      - key: PORT
+        value: "8080"
+        scope: RUN_TIME
+      - key: DATABASE_URL
+        value: ${listener-db.DATABASE_URL}
+        scope: RUN_AND_BUILD_TIME
+      - key: REDIS_HOST
+        value: ${listener-redis.HOSTNAME}
+        scope: RUN_TIME
+      - key: REDIS_PORT
+        value: ${listener-redis.PORT}
+        scope: RUN_TIME
+      - key: REDIS_PASSWORD
+        value: ${listener-redis.PASSWORD}
+        scope: RUN_TIME
+      - key: REDIS_USERNAME
+        value: default
+        scope: RUN_TIME
+      # ── Blockchain ──────────────────────────────────────────────────────────
+      - key: PRESALE_CONTRACT
+        scope: RUN_TIME
+        type: SECRET
+      - key: RPC_URL_PRIMARY
+        scope: RUN_TIME
+        type: SECRET
+      - key: RPC_URL_SECONDARY
+        scope: RUN_TIME
+        type: SECRET
+      - key: RPC_URL_TERTIARY
+        scope: RUN_TIME
+        type: SECRET
+      - key: CONFIRMATION_BLOCKS
+        value: "3"
+        scope: RUN_TIME
+      - key: POLLING_INTERVAL
+        value: "15000"
+        scope: RUN_TIME
+      - key: BATCH_SIZE
+        value: "1000"
+        scope: RUN_TIME
+      # ── Queue ───────────────────────────────────────────────────────────────
+      - key: EVENT_MAX_RETRIES
+        value: "5"
+        scope: RUN_TIME
+      - key: EVENT_RETRY_DELAY
+        value: "2000"
+        scope: RUN_TIME
+      - key: EVENT_WORKER_CONCURRENCY
+        value: "10"
+        scope: RUN_TIME
+      - key: EVENT_RATE_LIMIT_MAX
+        value: "100"
+        scope: RUN_TIME
+      - key: EVENT_RATE_LIMIT_DURATION
+        value: "1000"
+        scope: RUN_TIME
+      # ── Email ───────────────────────────────────────────────────────────────
+      - key: MAILGUN_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: MAILGUN_DOMAIN
+        scope: RUN_TIME
+        type: SECRET
+      - key: MAILGUN_FROM
+        scope: RUN_TIME
+        type: SECRET
+      - key: MAILGUN_BASE_URL
+        value: https://api.mailgun.net/v3
+        scope: RUN_TIME
+      - key: SAFT_EMAIL_ENABLED
+        value: "true"
+        scope: RUN_TIME
+      # ── Cloudinary ──────────────────────────────────────────────────────────
+      - key: CLOUDINARY_CLOUD_NAME
+        scope: RUN_TIME
+        type: SECRET
+      - key: CLOUDINARY_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: CLOUDINARY_API_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      # ── Monitoring ──────────────────────────────────────────────────────────
+      - key: ENABLE_METRICS
+        value: "true"
+        scope: RUN_TIME
+      - key: PDF_OUTPUT_DIR
+        value: /tmp/pdfs
+        scope: RUN_TIME
+
+jobs:
+  - name: db-migrate
+    dockerfile_path: Dockerfile
+    github:
+      branch: main
+      # repo: your-org/microleague_listner   ← fill this in
+    run_command: npx prisma migrate deploy
+    instance_size_slug: basic-xxs
+    kind: PRE_DEPLOY
+    envs:
+      - key: DATABASE_URL
+        value: ${listener-db.DATABASE_URL}
+        scope: RUN_TIME

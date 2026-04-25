@@ -19,7 +19,8 @@ import { HealthModule } from './health/health.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
+      envFilePath: [`.env.${process.env.NODE_ENV || 'development'}`, '.env'],
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
       cache: true,
     }),
     MailerModule.forRoot({
