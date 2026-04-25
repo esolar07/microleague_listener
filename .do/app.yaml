@@ -17,6 +17,7 @@ databases:
 services:
   - name: listener
     dockerfile_path: Dockerfile
+    run_command: node dist/src/main.js
     github:
       branch: main
       deploy_on_push: true
