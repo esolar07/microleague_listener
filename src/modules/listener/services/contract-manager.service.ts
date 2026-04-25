@@ -124,8 +124,13 @@ export class ContractManagerService {
   }
 
   private async processHistoricalEvents(instance: ContractInstance) {
-    // Bug fix: mark the instance so the polling loop skips it while the
-    // historical scan is in progress, preventing concurrent RPC overload.
+    // Guard against duplicate concurrent calls (e.g. registerContract + startListening race).
+    if (instance.isProcessingHistorical) {
+      this.logger.warn(
+        `[HISTORICAL] Already processing historical events for ${instance.config.contractName}, skipping duplicate call`
+      );
+      return;
+    }
     instance.isProcessingHistorical = true;
 
     const { config, contract, lastProcessedBlock } = instance;
@@ -178,6 +183,7 @@ export class ContractManagerService {
         // Cap at 500 blocks — the RPC provider's hard limit per eth_getLogs call
         const batchSize = Math.min(eventConfig.batchSize || 100, 500);
         let totalEventsFound = 0;
+        let consecutivePrunedErrors = 0;
 
         this.logger.log(
           `[HISTORICAL] Scanning ${eventConfig.eventName} from block ${currentBlock} to ${latestBlock} (batch size: ${batchSize})`
@@ -192,6 +198,8 @@ export class ContractManagerService {
               currentBlock,
               toBlock
             );
+
+            consecutivePrunedErrors = 0;
 
             if (events.length > 0) {
               totalEventsFound += events.length;
@@ -210,10 +218,26 @@ export class ContractManagerService {
 
             // Node doesn't have history for this range — skip it entirely
             if (errMsg.includes('pruned history unavailable') || errMsg.includes('missing trie node') || errMsg.includes('historical state unavailable')) {
-              this.logger.warn(
-                `[HISTORICAL] Pruned history at blocks ${currentBlock}-${toBlock} for ${eventConfig.eventName}, skipping range`
-              );
-              currentBlock = toBlock + 1;
+              consecutivePrunedErrors++;
+
+              // After 3 consecutive pruned batches we are deep in the pruned zone.
+              // Crawling 100 blocks at a time through millions of unavailable blocks
+              // would take hours and flood the logs, so jump straight to recent history.
+              if (consecutivePrunedErrors >= 3) {
+                const PRUNED_SAFE_BUFFER = 50_000;
+                const jumpTarget = Math.max(toBlock + 1, latestBlock - PRUNED_SAFE_BUFFER);
+                this.logger.warn(
+                  `[HISTORICAL] Pruned zone detected for ${eventConfig.eventName} (${consecutivePrunedErrors} consecutive errors). ` +
+                  `Jumping from block ${currentBlock} to ${jumpTarget} to skip unavailable history.`
+                );
+                currentBlock = jumpTarget;
+                consecutivePrunedErrors = 0;
+              } else {
+                this.logger.warn(
+                  `[HISTORICAL] Pruned history at blocks ${currentBlock}-${toBlock} for ${eventConfig.eventName}, skipping range`
+                );
+                currentBlock = toBlock + 1;
+              }
               await new Promise((resolve) => setTimeout(resolve, 200));
             } else if (errMsg.includes('exceed maximum block range') || errMsg.includes('query returned more than') || errMsg.includes('Block range too large') || errMsg.includes('block range')) {
               // Batch too large — retry with half the size
