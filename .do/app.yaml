@@ -126,16 +126,3 @@ services:
         value: /tmp/pdfs
         scope: RUN_TIME
 
-jobs:
-  - name: db-migrate
-    dockerfile_path: Dockerfile
-    github:
-      branch: main
-      # repo: your-org/microleague_listner   ← fill this in
-    run_command: npx prisma migrate deploy
-    instance_size_slug: basic-xxs
-    kind: PRE_DEPLOY
-    envs:
-      - key: DATABASE_URL
-        value: ${listener-db.DATABASE_URL}
-        scope: RUN_TIME
