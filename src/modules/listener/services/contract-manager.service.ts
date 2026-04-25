@@ -531,27 +531,34 @@ export class ContractManagerService {
     contractAddress: string,
     blockNumber: number
   ) {
+    const eventId = `${contractAddress.toLowerCase()}-lastProcessedBlock`;
     try {
-      // Save to database
-      await this.prisma.listenerState.upsert({
-        where: {
-          eventId: `${contractAddress.toLowerCase()}-lastProcessedBlock`
-        },
-        update: {
-          blockNumber,
-        },
-        create: {
-          eventId: `${contractAddress.toLowerCase()}-lastProcessedBlock`,
-          contract: contractAddress.toLowerCase(),
-          type: "lastProcessedBlock",
-          blockNumber,
-          hash: "",
-          logIndex: 0,
-          processedAt: new Date(),
-          eventName: "lastProcessedBlock",
-          blockHash: "",
-        }
+      // Use findFirst + update/create instead of upsert so we don't depend on
+      // the DB having the unique index on eventId (which may not be migrated yet).
+      const existing = await this.prisma.listenerState.findFirst({
+        where: { eventId },
       });
+
+      if (existing) {
+        await this.prisma.listenerState.update({
+          where: { id: existing.id },
+          data: { blockNumber, updatedAt: new Date() },
+        });
+      } else {
+        await this.prisma.listenerState.create({
+          data: {
+            eventId,
+            contract: contractAddress.toLowerCase(),
+            type: "lastProcessedBlock",
+            blockNumber,
+            hash: "",
+            logIndex: 0,
+            processedAt: new Date(),
+            eventName: "lastProcessedBlock",
+            blockHash: "",
+          },
+        });
+      }
     } catch (error) {
       this.logger.error(
         `Error saving last processed block for ${contractAddress}`,
