@@ -1,8 +1,8 @@
 // user.service.ts — operates on PresaleUser (shared BE database)
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
-import { PresaleUser } from "@prisma/client";
 import { CreateUserDTO } from "./dto/create-user.dto";
+import { PresaleUser } from "@prisma/client";
 
 function normalizeWalletAddress(walletAddress?: string | null): string | null {
   if (!walletAddress) return null;

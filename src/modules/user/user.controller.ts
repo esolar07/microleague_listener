@@ -12,7 +12,7 @@ import {
 } from "@nestjs/common";
 import { UserService } from "./user.service";
 import { AddReferralDTO } from "./dto/create-user.dto";
-import { UserDocument } from "./entities/user.entity";
+import { PresaleUser } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/guards/auth.guard";
 import { AuthUser } from "src/decorators/user.decorator";
 import {
@@ -38,7 +38,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @Post("add-referral")
   async createUser(
-    @AuthUser() user: UserDocument,
+    @AuthUser() user: PresaleUser,
     @Body() data: AddReferralDTO,
   ) {
     return this.userService.addReferral(user, data);
@@ -47,7 +47,7 @@ export class UserController {
   @Get("address/:address")
   async findUserByAddress(
     @Param("address") address: string,
-  ): Promise<UserDocument | null> {
+  ): Promise<PresaleUser | null> {
     return this.userService.findUserByAddress(address);
   }
 

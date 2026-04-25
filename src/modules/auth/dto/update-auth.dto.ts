@@ -1,7 +1,7 @@
-import { UserDocument } from 'src/modules/user/entities/user.entity';
+import { User } from '@prisma/client';
 
 export class SignOutResult {
-  user?: UserDocument;
+  user?: User;
   access_token?: string;
   message?: string;
 }

@@ -584,6 +584,14 @@ model Admin {
   @@map("admins")
 }
 
+model AuthNonce {
+  walletAddress String   @id
+  nonce         String
+  createdAt     DateTime @default(now())
+
+  @@map("auth_nonces")
+}
+
 model BankTransfer {
   id               String             @id @default(cuid())
   transferId       String             @unique

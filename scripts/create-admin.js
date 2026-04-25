@@ -15,7 +15,7 @@ const postgres = require('postgres');
 
 const DIRECT_DATABASE_URL =
   process.env.DIRECT_DATABASE_URL ||
-  'postgres://490f73d790bde6bc90d64743834599f59ec337bca3d5060a775007b1ce64a699:sk_o5jtaQcJ-poIipnIRvmR1@db.prisma.io:5432/postgres?sslmode=require';
+  "postgres://2caced61b2a078d78e1486e7dfc55ab1b7a0eb81113dda873522ef77c17ea693:sk_3egJQbGLjwuC7J9500iER@db.prisma.io:5432/postgres?sslmode=require";
 
 const args = process.argv.slice(2);
 const address = args[0];
@@ -25,8 +25,8 @@ if (!address || !address.startsWith('0x')) {
   process.exit(1);
 }
 
-const firstName  = args[1] || 'Admin';
-const lastName   = args[2] || 'User';
+const firstName = args[1] || 'Admin';
+const lastName = args[2] || 'User';
 const superAdmin = args.includes('--super');
 const normalized = address.toLowerCase();
 
@@ -40,7 +40,7 @@ async function main() {
 
   try {
     const result = await sql`
-      INSERT INTO "Admin" (id, "firstName", "lastName", address, "superAdmin", "createdAt", "updatedAt")
+      INSERT INTO "admins" (id, "firstName", "lastName", address, "superAdmin", "createdAt", "updatedAt")
       VALUES (gen_random_uuid()::text, ${firstName}, ${lastName}, ${normalized}, ${superAdmin}, NOW(), NOW())
       ON CONFLICT (address) DO UPDATE
         SET "firstName"  = EXCLUDED."firstName",
