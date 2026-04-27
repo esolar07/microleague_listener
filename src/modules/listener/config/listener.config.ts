@@ -27,7 +27,7 @@ export const LISTENER_CONFIG: ContractEventConfig[] = [
     abi: PRESALE_ABI,
     network: 'ethereum',
     enabled: true,
-    startBlock: 9822755, //9616518,
+    startBlock: 40759127, //9616518,
     events: [
       {
         eventName: 'Bought',
@@ -62,7 +62,7 @@ export const LISTENER_CONFIG: ContractEventConfig[] = [
     abi: [], // ERC20_ABI
     network: 'ethereum',
     enabled: false,
-    startBlock: 17500000,
+    startBlock: 40759127,
     events: [
       {
         eventName: 'Transfer',

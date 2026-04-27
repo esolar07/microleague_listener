@@ -81,15 +81,32 @@ export class PdfService {
 
         // ── Header band ──
         doc.rect(0, 0, this.PAGE_W, 104).fill('#667eea');
-        doc
-          .font('Helvetica-Bold')
-          .fontSize(24)
-          .fillColor('#ffffff')
-          .text('MicroLeague', this.MARGIN, 30, { width: 320 });
-        doc
-          .font('Helvetica')
-          .fontSize(11)
-          .text('TECHNOLOGIES LTD', this.MARGIN, 58, { width: 320 });
+
+        const logoPath = path.join(
+          __dirname,
+          '..',
+          '..',
+          '..',
+          '..',
+          'assets',
+          'microleague_coin.png',
+        );
+
+        if (fs.existsSync(logoPath)) {
+          doc.image(logoPath, this.MARGIN, 12, { height: 80 });
+        } else {
+          doc
+            .font('Helvetica-Bold')
+            .fontSize(24)
+            .fillColor('#ffffff')
+            .text('MicroLeague', this.MARGIN, 30, { width: 320 });
+          doc
+            .font('Helvetica')
+            .fontSize(11)
+            .fillColor('#ffffff')
+            .text('TECHNOLOGIES LTD', this.MARGIN, 58, { width: 320 });
+        }
+
         doc
           .font('Helvetica')
           .fontSize(9)

@@ -214,6 +214,7 @@ export class ContractManagerService {
             // Shorter delay for faster processing (200ms instead of 500ms)
             await new Promise((resolve) => setTimeout(resolve, 200));
           } catch (error) {
+            this.logger.error(`[HISTORICAL] Error processing ${eventConfig.eventName} for ${config.contractName}: ${error.message}`, error.stack);
             const errMsg: string = error?.message || String(error);
 
             // Node doesn't have history for this range — skip it entirely

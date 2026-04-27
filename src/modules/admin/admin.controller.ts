@@ -123,7 +123,7 @@ export class AdminController {
     // Fall back to env-based config if no DB record
     const envConfig = {
       contractAddress: process.env.PRESALE_CONTRACT || "",
-      startBlock: 9822755,
+      startBlock: 40759127,
       enabled: true,
       network: "ethereum",
     };
@@ -152,7 +152,7 @@ export class AdminController {
           INSERT INTO contract_configs ("contractAddress", "startBlock", "enabled", "network", "updatedAt", "createdAt")
           VALUES (
             ${dto.contractAddress ?? process.env.PRESALE_CONTRACT ?? ""},
-            ${dto.startBlock ?? 9822755},
+            ${dto.startBlock ?? 40759127},
             ${dto.enabled ?? true},
             'ethereum',
             NOW(),

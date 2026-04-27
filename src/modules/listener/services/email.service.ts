@@ -161,14 +161,25 @@ export class EmailService {
     <!-- Container -->
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; background:#ffffff;">
       
-      <!-- Header -->
-      <tr>
+    <!-- Header -->
+    <tr>
         <td align="center" style="padding:40px 20px; background:#667eea; color:#ffffff;">
+          
+          <!-- Logo -->
+          <img 
+            src="https://res.cloudinary.com/dp7lq9ug7/image/upload/v1777295629/microleague_coin_nmgjuh.png" 
+            alt="MicroLeague Coin Logo" 
+            width="150" 
+            style="display:block; margin:0 auto 20px; max-width:150px; height:auto;"
+          />
+
           <h1 style="margin:0; font-size:24px;">✓ SAFT Certificate</h1>
           <p style="margin:8px 0 0; font-size:13px;">Simple Agreement for Future Tokens</p>
+          
           <div style="margin-top:10px; font-size:11px; background:rgba(255,255,255,0.2); display:inline-block; padding:5px 12px; border-radius:20px;">
             BLOCKCHAIN SECURED
           </div>
+
         </td>
       </tr>
 
