@@ -77,25 +77,19 @@ export class PdfService {
           vesting?.releaseIntervalSeconds && vesting?.durationSeconds
             ? Math.floor(vesting.durationSeconds / vesting.releaseIntervalSeconds)
             : 0;
-        const unlockPct = numReleases > 0 ? Math.round(100 / numReleases) : 100;
+        const unlockPctNum = numReleases > 0 ? 100 / numReleases : 100;
+        const unlockPct =
+          unlockPctNum >= 1 ? `${Math.round(unlockPctNum)}%` : `${unlockPctNum.toFixed(4)}%`;
 
-        // ── Header band ──
-        // ── Header (Updated Premium White Style) ──
-        const headerHeight = 90;
+        // REPLACE YOUR ENTIRE CURRENT HEADER SECTION WITH THIS:
 
-        // white background
+        // ── Modern Centered Hero Header ──
+        const headerHeight = 220;
+
+        // White background
         doc.rect(0, 0, this.PAGE_W, headerHeight).fill('#ffffff');
 
-        // bottom border line (subtle separation)
-        doc
-          .moveTo(this.MARGIN, headerHeight - 1)
-          .lineTo(this.PAGE_W - this.MARGIN, headerHeight - 1)
-          .strokeColor('#e6ecf5')
-          .lineWidth(1)
-          .stroke();
-
-        const logoY = 18;
-
+        // Logo
         const logoPath = path.join(
           __dirname,
           '..',
@@ -106,69 +100,72 @@ export class PdfService {
           'microleague_coin.png',
         );
 
-        // ── Logo (left) ──
         if (fs.existsSync(logoPath)) {
-          doc.image(logoPath, this.MARGIN, logoY, { height: 55 });
+          doc.image(logoPath, this.PAGE_W / 2 - 70, 18, {
+            width: 140,
+          });
         } else {
-          doc
-            .font('Helvetica-Bold')
-            .fontSize(18)
-            .fillColor('#667eea')
-            .text('MicroLeague', this.MARGIN, logoY + 10);
-
-          doc
-            .font('Helvetica')
-            .fontSize(9)
-            .fillColor('#5e6d82')
-            .text('TECHNOLOGIES LTD', this.MARGIN, logoY + 32);
-        }
-
-        // ── Right side meta ──
-        doc
-          .font('Helvetica-Bold')
-          .fontSize(10)
-          .fillColor('#2c3e50')
-          .text('SAFT CERTIFICATE', 0, logoY + 8, {
-            width: this.PAGE_W - this.MARGIN,
-            align: 'right',
-          });
-
-        doc
-          .font('Helvetica')
-          .fontSize(8.5)
-          .fillColor('#5e6d82')
-          .text(`Ref: ${txRef}`, 0, logoY + 28, {
-            width: this.PAGE_W - this.MARGIN,
-            align: 'right',
-          });
-
-        doc
-          .font('Helvetica')
-          .fontSize(8.5)
-          .fillColor('#5e6d82')
-          .text(date, 0, logoY + 42, {
-            width: this.PAGE_W - this.MARGIN,
-            align: 'right',
-          });
-
-        // ── Small badge ──
-        doc.roundedRect(this.PAGE_W - this.MARGIN - 120, logoY + 58, 110, 18, 6).fill('#667eea');
-
-        doc
-          .font('Helvetica-Bold')
-          .fontSize(7.5)
-          .fillColor('#ffffff')
-          .text('BLOCKCHAIN VERIFIED', this.PAGE_W - this.MARGIN - 115, logoY + 63, {
-            width: 100,
+          doc.font('Helvetica-Bold').fontSize(28).fillColor('#667eea').text('MicroLeague', 0, 38, {
+            width: this.PAGE_W,
             align: 'center',
           });
 
+          doc.font('Helvetica').fontSize(12).fillColor('#5e6d82').text('COIN', 0, 72, {
+            width: this.PAGE_W,
+            align: 'center',
+          });
+        }
+
+        // Main Certificate Title
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(30)
+          .fillColor('#667eea')
+          .text('SAFT Certificate', 0, 100, {
+            width: this.PAGE_W,
+            align: 'center',
+          });
+
+        // Subtitle
+        doc
+          .font('Helvetica')
+          .fontSize(16)
+          .fillColor('#546e7a')
+          .text('Simple Agreement for Future Tokens', 0, 145, {
+            width: this.PAGE_W,
+            align: 'center',
+          });
+
+        // Badge
+        const badgeW = 220;
+        const badgeH = 34;
+        const badgeX = (this.PAGE_W - badgeW) / 2;
+        const badgeY = 178;
+
+        doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 17).fill('#667eea');
+
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(13)
+          .fillColor('#ffffff')
+          .text('BLOCKCHAIN SECURED', badgeX, badgeY + 10, {
+            width: badgeW,
+            align: 'center',
+          });
+
+        // Optional subtle bottom divider
+        doc
+          .moveTo(this.MARGIN, headerHeight + 8)
+          .lineTo(this.PAGE_W - this.MARGIN, headerHeight + 8)
+          .strokeColor('#d8e2ef')
+          .lineWidth(1)
+          .stroke();
+
         doc.save();
-        // doc.roundedRect(this.MARGIN, 92, this.CONTENT_W, 4, 2).fill('#764ba2');
         doc.restore();
 
         // ── Title ──
-        doc.y = 118;
+        doc.y = 245;
         doc
           .font('Helvetica-Bold')
           .fontSize(20)
@@ -234,7 +231,7 @@ export class PdfService {
         ];
 
         const detailsTop = doc.y;
-        const detailCardHeight = 120;
+        const detailCardHeight = Math.max(leftRows.length, rightRows.length) * 30 + 26;
         doc
           .roundedRect(this.MARGIN, detailsTop, this.CONTENT_W, detailCardHeight, 12)
           .fill('#ffffff')
@@ -242,37 +239,42 @@ export class PdfService {
           .lineWidth(1)
           .stroke();
         doc
-          .roundedRect(this.MARGIN + 6, detailsTop + 6, 8, detailCardHeight - 12, 4)
+          .roundedRect(this.MARGIN + 6, detailsTop + 8, 5, detailCardHeight - 16, 3)
           .fill('#667eea');
 
-        let leftY = detailsTop + 16;
+        const rowH = 30;
+        const colLeft = this.MARGIN + 22;
+        const colRight = this.MARGIN + 248;
+        const colW = 185;
+
+        let leftY = detailsTop + 14;
         leftRows.forEach(([label, value]) => {
           doc
             .font('Helvetica-Bold')
-            .fontSize(9)
+            .fontSize(8.5)
             .fillColor('#4b5a77')
-            .text(label, this.MARGIN + 20, leftY, { width: 160 });
+            .text(label, colLeft, leftY, { width: colW });
           doc
             .font('Helvetica')
             .fontSize(9)
             .fillColor('#1f2a44')
-            .text(value, this.MARGIN + 20, leftY + 10, { width: 160 });
-          leftY += 30;
+            .text(value, colLeft, leftY + 11, { width: colW });
+          leftY += rowH;
         });
 
-        let rightY = detailsTop + 16;
+        let rightY = detailsTop + 14;
         rightRows.forEach(([label, value]) => {
           doc
             .font('Helvetica-Bold')
-            .fontSize(9)
+            .fontSize(8.5)
             .fillColor('#4b5a77')
-            .text(label, this.MARGIN + 240, rightY, { width: 145 });
+            .text(label, colRight, rightY, { width: colW });
           doc
             .font('Helvetica')
             .fontSize(9)
             .fillColor('#1f2a44')
-            .text(value, this.MARGIN + 240, rightY + 10, { width: 140 });
-          rightY += 30;
+            .text(value, colRight, rightY + 11, { width: colW });
+          rightY += rowH;
         });
 
         doc.y = detailsTop + detailCardHeight + 18;
@@ -289,19 +291,20 @@ export class PdfService {
           ['Cliff Period', `${cliffDisplay} from purchase date`],
           ['Vesting Duration', `${durationDisplay} total`],
           ['Release Schedule', `Every ${releaseDisplay}`],
-          ['First Unlock', `${unlockPct}% after cliff period`],
-          ['Subsequent Unlocks', `${unlockPct}% every ${releaseDisplay}`],
+          ['First Unlock', `${unlockPct} after cliff period`],
+          ['Subsequent Unlocks', `${unlockPct} every ${releaseDisplay}`],
         ];
 
         const scheduleTop = doc.y;
-        const scheduleHeight = schedule.length * 16 + 18;
+        const scheduleLineH = 20;
+        const scheduleHeight = schedule.length * scheduleLineH + 24;
         doc
           .roundedRect(this.MARGIN, scheduleTop, this.CONTENT_W, scheduleHeight, 12)
           .fill('#f4f7ff')
           .strokeColor('#d8e2ef')
           .lineWidth(1)
           .stroke();
-        doc.y = scheduleTop + 12;
+        doc.y = scheduleTop + 14;
 
         schedule.forEach(([label, detail]) => {
           const y = doc.y;
@@ -309,11 +312,11 @@ export class PdfService {
             .font('Helvetica-Bold')
             .fontSize(9)
             .fillColor('#4b5a77')
-            .text(`•  ${label}:`, this.MARGIN + 14, y, { continued: true })
+            .text(`•  ${label}: `, this.MARGIN + 14, y, { continued: true })
             .font('Helvetica')
             .fillColor('#1f2a44')
-            .text(` ${detail}`);
-          doc.y = y + 16;
+            .text(detail);
+          doc.y = y + scheduleLineH;
         });
 
         doc.y = scheduleTop + scheduleHeight + 18;
@@ -338,10 +341,10 @@ export class PdfService {
         terms.forEach((t) => {
           doc
             .font('Helvetica')
-            .fontSize(7.5)
+            .fontSize(8)
             .fillColor('#5e6d82')
             .text(`•  ${t}`, this.MARGIN + 12, doc.y, { width: this.CONTENT_W - 20 });
-          doc.y += 10;
+          doc.y += 14;
         });
 
         doc.y += 6;
