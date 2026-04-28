@@ -45,7 +45,7 @@ export class PdfService {
           margin: this.MARGIN,
           info: {
             Title: `SAFT Certificate - ${txRef}`,
-            Author: 'MicroLeague Technologies Ltd',
+            Author: 'MicroLeague Sports Inc.',
           },
         });
 

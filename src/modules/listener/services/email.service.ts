@@ -298,7 +298,7 @@ export class EmailService {
                       </a>
                     </p>
                     <p style="margin:0 0 8px;">This is an automated message. Please do not reply.</p>
-                    <p style="margin:0;">© ${new Date().getFullYear()} MicroLeague Technologies Ltd.</p>
+                    <p style="margin:0;">© ${new Date().getFullYear()} MicroLeague Sports Inc.</p>
                   </td>
                 </tr>
 
@@ -382,7 +382,7 @@ Questions?              https://app.microleague.com/support
 
 This is an automated message. Please do not reply to this email.
 
-© ${new Date().getFullYear()} MicroLeague Technologies Ltd. 
+© ${new Date().getFullYear()} MicroLeague Sports Inc. 
 All rights reserved.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
