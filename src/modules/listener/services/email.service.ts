@@ -145,172 +145,173 @@ export class EmailService {
     return `<!DOCTYPE html>
 
 <html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SAFT Certificate</title>
-</head>
+  <head>
+    <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>SAFT Certificate</title>
+      </head>
 
-<body style="margin:0; padding:0; background:#f5f7fa; font-family: Arial, sans-serif;">
+      <body style="margin:0; padding:0; background:#f5f7fa; font-family: Arial, sans-serif;">
 
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f7fa;">
-    <tr>
-      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f5f7fa;">
+          <tr>
+            <td align="center">
 
 
-    <!-- Container -->
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; background:#ffffff;">
-      
-    <!-- Header -->
-    <tr>
-        <td align="center" style="padding:40px 20px; background:#667eea; color:#ffffff;">
-          
-          <!-- Logo -->
-          <img 
-            src="https://res.cloudinary.com/dp7lq9ug7/image/upload/v1777295629/microleague_coin_nmgjuh.png" 
-            alt="MicroLeague Coin Logo" 
-            width="150" 
-            style="display:block; margin:0 auto 20px; max-width:150px; height:auto;"
-          />
+              <!-- Container -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; background:#ffffff;">
 
-          <h1 style="margin:0; font-size:24px;">✓ SAFT Certificate</h1>
-          <p style="margin:8px 0 0; font-size:13px;">Simple Agreement for Future Tokens</p>
-          
-          <div style="margin-top:10px; font-size:11px; background:rgba(255,255,255,0.2); display:inline-block; padding:5px 12px; border-radius:20px;">
-            BLOCKCHAIN SECURED
-          </div>
 
-        </td>
-      </tr>
+                <!-- Header -->
+                <tr>
+                  <td align="center" style="padding:40px 20px; background:#ffffff; color:#333333;">
 
-      <!-- Content -->
-      <tr>
-        <td style="padding:30px 20px;">
+                    <!-- Logo -->
+                    <img src="https://res.cloudinary.com/dp7lq9ug7/image/upload/v1777295629/microleague_coin_nmgjuh.png" alt="MicroLeague Coin Logo" width="150" style="display:block; margin:0 auto 20px; max-width:150px; height:auto;" />
 
-          <p style="font-size:16px; font-weight:600; margin:0 0 10px;">Thank You for Your Purchase!</p>
-          <p style="font-size:14px; color:#546e7a; line-height:1.6;">
+                    <h1 style="margin:0; font-size:24px; color:#667eea;">SAFT Certificate</h1>
+                    <p style="margin:8px 0 0; font-size:13px; color:#546e7a;">
+      Simple Agreement for Future Tokens
+                    </p>
+
+                    <div style="margin-top:10px; font-size:11px; background:#667eea; color:#ffffff; display:inline-block; padding:5px 12px; border-radius:20px;">
+      BLOCKCHAIN SECURED
+                    </div>
+
+                  </td>
+                </tr>
+
+                <!-- Content -->
+                <tr>
+                  <td style="padding:30px 20px;">
+
+                    <p style="font-size:16px; font-weight:600; margin:0 0 10px;">Thank You for Your Purchase!</p>
+                    <p style="font-size:14px; color:#546e7a; line-height:1.6;">
             Your MicroLeague Coin (MLC) purchase has been successfully processed and secured in audited smart contracts.
-          </p>
+                    </p>
 
-          <!-- Section Title -->
-          <p style="font-size:15px; font-weight:bold; margin-top:25px;">Transaction Details</p>
+                    <!-- Section Title -->
+                    <p style="font-size:15px; font-weight:bold; margin-top:25px;">Transaction Details</p>
 
-          <!-- Details Box -->
-          <table width="100%" cellpadding="10" cellspacing="0" style="background:#f5f7fa; border-left:4px solid #667eea; margin-top:10px;">
-            
-            <tr>
-              <td style="font-size:12px; color:#777;">Reference ID</td>
-              <td style="font-size:13px;">${txRef}</td>
-            </tr>
+                    <!-- Details Box -->
+                    <table width="100%" cellpadding="10" cellspacing="0" style="background:#f5f7fa; border-left:4px solid #667eea; margin-top:10px;">
 
-            <tr>
-              <td style="font-size:12px; color:#777;">Date</td>
-              <td style="font-size:13px;">${date}</td>
-            </tr>
+                      <tr>
+                        <td style="font-size:12px; color:#777;">Reference ID</td>
+                        <td style="font-size:13px;">${txRef}</td>
+                      </tr>
 
-            <tr>
-              <td style="font-size:12px; color:#777;">Wallet Address</td>
-              <td style="font-size:12px; word-break:break-all;">${walletAddress}</td>
-            </tr>
+                      <tr>
+                        <td style="font-size:12px; color:#777;">Date</td>
+                        <td style="font-size:13px;">${date}</td>
+                      </tr>
 
-            <tr>
-              <td style="font-size:12px; color:#777;">Transaction Hash</td>
-              <td style="font-size:12px; word-break:break-all;">${txHash}</td>
-            </tr>
+                      <tr>
+                        <td style="font-size:12px; color:#777;">Wallet Address</td>
+                        <td style="font-size:12px; word-break:break-all;">${walletAddress}</td>
+                      </tr>
 
-            <tr>
-              <td style="font-size:12px; color:#777;">Amount Paid</td>
-              <td style="font-size:14px; font-weight:bold; color:#667eea;">
+                      <tr>
+                        <td style="font-size:12px; color:#777;">Transaction Hash</td>
+                        <td style="font-size:12px; word-break:break-all;">
+                          <a href="https://etherscan.io/tx/${txHash}" target="_blank" style="color:#667eea; text-decoration:underline;">
+    ${txHash}
+                          </a>
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td style="font-size:12px; color:#777;">Amount Paid</td>
+                        <td style="font-size:14px; font-weight:bold; color:#667eea;">
                 $${amount.toFixed(2)} USD
-              </td>
-            </tr>
+                        </td>
+                      </tr>
 
-            <tr>
-              <td style="font-size:12px; color:#777;">Tokens Allocated</td>
-              <td style="font-size:14px; font-weight:bold;">
+                      <tr>
+                        <td style="font-size:12px; color:#777;">Tokens Allocated</td>
+                        <td style="font-size:14px; font-weight:bold;">
                 ${tokens.toLocaleString()} MLC
-              </td>
-            </tr>
+                        </td>
+                      </tr>
 
-            <tr>
-              <td style="font-size:12px; color:#777;">Price per Token</td>
-              <td style="font-size:13px;">
+                      <tr>
+                        <td style="font-size:12px; color:#777;">Price per Token</td>
+                        <td style="font-size:13px;">
                 $${(amount / tokens).toFixed(4)} USD
-              </td>
-            </tr>
+                        </td>
+                      </tr>
 
-          </table>
+                    </table>
 
-          <!-- Vesting -->
-          <p style="font-size:15px; font-weight:bold; margin-top:25px;">Vesting Schedule</p>
+                    <!-- Vesting -->
+                    <p style="font-size:15px; font-weight:bold; margin-top:25px;">Vesting Schedule</p>
 
-          <table width="100%" cellpadding="10" cellspacing="0" style="background:#f5f7fa; border-left:4px solid #764ba2;">
-            
-            <tr>
-              <td width="50%" style="font-size:12px;">Cliff Period</td>
-              <td width="50%" style="font-size:13px; font-weight:bold;">${cliff}</td>
-            </tr>
+                    <table width="100%" cellpadding="10" cellspacing="0" style="background:#f5f7fa; border-left:4px solid #764ba2;">
 
-            <tr>
-              <td style="font-size:12px;">Total Duration</td>
-              <td style="font-size:13px; font-weight:bold;">${duration}</td>
-            </tr>
+                      <tr>
+                        <td width="50%" style="font-size:12px;">Cliff Period</td>
+                        <td width="50%" style="font-size:13px; font-weight:bold;">${cliff}</td>
+                      </tr>
 
-            <tr>
-              <td style="font-size:12px;">Release Schedule</td>
-              <td style="font-size:13px; font-weight:bold;">Every ${release}</td>
-            </tr>
+                      <tr>
+                        <td style="font-size:12px;">Total Duration</td>
+                        <td style="font-size:13px; font-weight:bold;">${duration}</td>
+                      </tr>
 
-            <tr>
-              <td style="font-size:12px;">First Unlock</td>
-              <td style="font-size:13px; font-weight:bold;">${unlockPct}%</td>
-            </tr>
+                      <tr>
+                        <td style="font-size:12px;">Release Schedule</td>
+                        <td style="font-size:13px; font-weight:bold;">Every ${release}</td>
+                      </tr>
 
-          </table>
+                      <tr>
+                        <td style="font-size:12px;">First Unlock</td>
+                        <td style="font-size:13px; font-weight:bold;">${unlockPct}%</td>
+                      </tr>
 
-          <!-- Info -->
-          <p style="background:#e3f2fd; padding:12px; font-size:12px; color:#1565c0; margin-top:20px;">
+                    </table>
+
+                    <!-- Info -->
+                    <p style="background:#e3f2fd; padding:12px; font-size:12px; color:#1565c0; margin-top:20px;">
             ℹ️ Your tokens are secured in audited smart contracts and will vest according to the schedule above.
-          </p>
+                    </p>
 
-          <!-- Button (Gmail Safe) -->
-          <table align="center" cellpadding="0" cellspacing="0" style="margin-top:25px;">
-            <tr>
-              <td align="center" bgcolor="#667eea" style="border-radius:6px;">
-                <a href="https://app.microleague.com/dashboard"
-                   style="display:inline-block; padding:12px 25px; color:#ffffff; text-decoration:none; font-size:14px; font-weight:bold;">
+                    <!-- Button (Gmail Safe) -->
+                    <table align="center" cellpadding="0" cellspacing="0" style="margin-top:25px;">
+                      <tr>
+                        <td align="center" bgcolor="#667eea" style="border-radius:6px;">
+                          <a href="https://app.microleague.com/dashboard" style="display:inline-block; padding:12px 25px; color:#ffffff; text-decoration:none; font-size:14px; font-weight:bold;">
                   View Your Dashboard
-                </a>
-              </td>
-            </tr>
-          </table>
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
 
-        </td>
-      </tr>
+                  </td>
+                </tr>
 
-      <!-- Footer -->
-      <tr>
-        <td align="center" style="padding:20px; font-size:12px; color:#777; background:#f5f7fa;">
-          <p style="margin:0 0 8px;">
-            <a href="https://app.microleague.com/support" style="color:#667eea; text-decoration:none;">
+                <!-- Footer -->
+                <tr>
+                  <td align="center" style="padding:20px; font-size:12px; color:#777; background:#f5f7fa;">
+                    <p style="margin:0 0 8px;">
+                      <a href="https://app.microleague.com/support" style="color:#667eea; text-decoration:none;">
               Support Center
-            </a>
-          </p>
-          <p style="margin:0 0 8px;">This is an automated message. Please do not reply.</p>
-          <p style="margin:0;">© ${new Date().getFullYear()} MicroLeague Technologies Ltd.</p>
-        </td>
-      </tr>
+                      </a>
+                    </p>
+                    <p style="margin:0 0 8px;">This is an automated message. Please do not reply.</p>
+                    <p style="margin:0;">© ${new Date().getFullYear()} MicroLeague Technologies Ltd.</p>
+                  </td>
+                </tr>
 
-    </table>
+              </table>
 
-  </td>
-</tr>
+            </td>
+          </tr>
 
 
-  </table>
+        </table>
 
-</body>
-</html>
+      </body>
+    </html>
 `;
   }
 

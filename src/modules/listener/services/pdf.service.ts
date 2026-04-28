@@ -80,7 +80,21 @@ export class PdfService {
         const unlockPct = numReleases > 0 ? Math.round(100 / numReleases) : 100;
 
         // ── Header band ──
-        doc.rect(0, 0, this.PAGE_W, 104).fill('#667eea');
+        // ── Header (Updated Premium White Style) ──
+        const headerHeight = 90;
+
+        // white background
+        doc.rect(0, 0, this.PAGE_W, headerHeight).fill('#ffffff');
+
+        // bottom border line (subtle separation)
+        doc
+          .moveTo(this.MARGIN, headerHeight - 1)
+          .lineTo(this.PAGE_W - this.MARGIN, headerHeight - 1)
+          .strokeColor('#e6ecf5')
+          .lineWidth(1)
+          .stroke();
+
+        const logoY = 18;
 
         const logoPath = path.join(
           __dirname,
@@ -92,27 +106,62 @@ export class PdfService {
           'microleague_coin.png',
         );
 
+        // ── Logo (left) ──
         if (fs.existsSync(logoPath)) {
-          doc.image(logoPath, this.MARGIN, 12, { height: 80 });
+          doc.image(logoPath, this.MARGIN, logoY, { height: 55 });
         } else {
           doc
             .font('Helvetica-Bold')
-            .fontSize(24)
-            .fillColor('#ffffff')
-            .text('MicroLeague', this.MARGIN, 30, { width: 320 });
+            .fontSize(18)
+            .fillColor('#667eea')
+            .text('MicroLeague', this.MARGIN, logoY + 10);
+
           doc
             .font('Helvetica')
-            .fontSize(11)
-            .fillColor('#ffffff')
-            .text('TECHNOLOGIES LTD', this.MARGIN, 58, { width: 320 });
+            .fontSize(9)
+            .fillColor('#5e6d82')
+            .text('TECHNOLOGIES LTD', this.MARGIN, logoY + 32);
         }
+
+        // ── Right side meta ──
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(10)
+          .fillColor('#2c3e50')
+          .text('SAFT CERTIFICATE', 0, logoY + 8, {
+            width: this.PAGE_W - this.MARGIN,
+            align: 'right',
+          });
 
         doc
           .font('Helvetica')
-          .fontSize(9)
-          .fillColor('#ffffffcc')
-          .text(`Ref: ${txRef}`, 0, 34, { width: this.PAGE_W - this.MARGIN, align: 'right' })
-          .text(date, 0, 52, { width: this.PAGE_W - this.MARGIN, align: 'right' });
+          .fontSize(8.5)
+          .fillColor('#5e6d82')
+          .text(`Ref: ${txRef}`, 0, logoY + 28, {
+            width: this.PAGE_W - this.MARGIN,
+            align: 'right',
+          });
+
+        doc
+          .font('Helvetica')
+          .fontSize(8.5)
+          .fillColor('#5e6d82')
+          .text(date, 0, logoY + 42, {
+            width: this.PAGE_W - this.MARGIN,
+            align: 'right',
+          });
+
+        // ── Small badge ──
+        doc.roundedRect(this.PAGE_W - this.MARGIN - 120, logoY + 58, 110, 18, 6).fill('#667eea');
+
+        doc
+          .font('Helvetica-Bold')
+          .fontSize(7.5)
+          .fillColor('#ffffff')
+          .text('BLOCKCHAIN VERIFIED', this.PAGE_W - this.MARGIN - 115, logoY + 63, {
+            width: 100,
+            align: 'center',
+          });
 
         doc.save();
         // doc.roundedRect(this.MARGIN, 92, this.CONTENT_W, 4, 2).fill('#764ba2');

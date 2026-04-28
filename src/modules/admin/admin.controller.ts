@@ -17,6 +17,8 @@ import { AdminGuard } from "../auth/guards/admin.guard";
 import { AuthUser } from "src/decorators/user.decorator";
 import { PrismaService } from "src/prisma/prisma.service";
 import { ListenerService } from "../listener/listener.service";
+import { AdminService } from "./admin.service";
+import { CreateAdminDto } from "./dto/create-admin.dto";
 import { IsString, IsOptional, IsBoolean, IsNumber } from "class-validator";
 
 class UpdateContractConfigDto {
@@ -40,6 +42,7 @@ export class AdminController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly listenerService: ListenerService,
+    private readonly adminService: AdminService,
   ) {}
 
   @UseGuards(AdminGuard)
@@ -98,16 +101,29 @@ export class AdminController {
   @Get()
   async findAll() {
     try {
-      // Use direct Prisma query
       const admins = await this.prisma.$queryRaw`
         SELECT * FROM admins ORDER BY "createdAt" DESC
       `;
-      
       return admins || [];
     } catch (error) {
       console.error("Error in findAll:", error);
       throw error;
     }
+  }
+
+  @UseGuards(AdminGuard)
+  @Post()
+  @ApiOperation({ summary: "Create a new admin" })
+  async create(@Body() createAdminDto: CreateAdminDto) {
+    return this.adminService.create(createAdminDto);
+  }
+
+  @UseGuards(AdminGuard)
+  @Delete(":id")
+  @ApiOperation({ summary: "Delete an admin by ID" })
+  async remove(@Param("id") id: string) {
+    await this.adminService.remove(id);
+    return { message: "Admin deleted successfully" };
   }
 
   // ============ CONTRACT CONFIG ============
