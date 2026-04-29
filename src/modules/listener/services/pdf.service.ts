@@ -335,7 +335,7 @@ export class PdfService {
           'Token allocation is recorded on the blockchain and can be verified using the transaction hash.',
           'This certificate is non-transferable.',
           'All token allocations are subject to the MicroLeague Presale Agreement terms.',
-          'Questions? Contact support@microleague.com.',
+          'Questions? Contact esolar@egghealthhub.com.',
         ];
 
         terms.forEach((t) => {
@@ -355,7 +355,7 @@ export class PdfService {
           .fontSize(7)
           .fillColor('#9aa3b3')
           .text(
-            'MicroLeague Technologies Ltd  •  support@microleague.com  •  microleague.com',
+            'MicroLeague Sports Inc  •  esolar@egghealthhub.com  •  microleague.com',
             this.MARGIN,
             doc.y,
             { width: this.CONTENT_W, align: 'center' },
