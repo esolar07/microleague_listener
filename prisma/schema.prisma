@@ -650,6 +650,45 @@ enum BankTransferStatus {
   Rejected
 }
 
+model PrivateSaleSubmission {
+  id               String                      @id @default(cuid())
+  submissionId     String                      @unique
+  fullName         String
+  email            String
+  contact          String
+  country          String
+  walletAddress    String
+  amount           Float
+  paymentMethod    String
+  transactionRef   String
+  paymentReference String?
+  proofUrl         String
+  proofFileName    String?
+  notes            String                      @default("")
+  status           PrivateSaleSubmissionStatus @default(Pending)
+  verificationNote String?
+  allocationTxHash String?
+  allocatedTokens  String?
+  allocatedStageId Int?
+  verifiedBy       String?
+  verifiedAt       DateTime?
+  rejectedBy       String?
+  rejectedAt       DateTime?
+  createdAt        DateTime                    @default(now())
+  updatedAt        DateTime                    @updatedAt
+
+  @@index([walletAddress])
+  @@index([status])
+  @@index([createdAt])
+  @@map("private_sale_submissions")
+}
+
+enum PrivateSaleSubmissionStatus {
+  Pending
+  Approved
+  Rejected
+}
+
 enum ActivityType {
   Buy
   Claim

@@ -3,6 +3,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UserModule } from './modules/user/user.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { BankTransfersModule } from './modules/bank-transfers/bank-transfers.module';
+import { PrivateSaleSubmissionsModule } from './modules/private-sale-submissions/private-sale-submissions.module';
 import { AppController } from './app.controller';
 import { ConfigModule } from '@nestjs/config';
 import { AppService } from './app.service';
@@ -50,6 +51,7 @@ import { HealthModule } from './health/health.module';
     UserModule,
     AdminModule,
     BankTransfersModule,
+    PrivateSaleSubmissionsModule,
     TransactionsModule,
     ListenerModule,
     ScheduleModule.forRoot(),
