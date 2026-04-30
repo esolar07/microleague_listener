@@ -4,10 +4,14 @@ import { PrivateSaleSubmission, PrivateSaleSubmissionStatus } from '@prisma/clie
 import { CreatePrivateSaleSubmissionDto } from './dto/create-private-sale-submission.dto';
 import { FilterPrivateSaleSubmissionsDto } from './dto/filter-private-sale-submissions.dto';
 import { VerifyPrivateSaleSubmissionDto } from './dto/verify-private-sale-submission.dto';
+import { EmailQueueService } from '../queue/email/email.queue.service';
 
 @Injectable()
 export class PrivateSaleSubmissionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailQueueService,
+  ) {}
 
   async create(dto: CreatePrivateSaleSubmissionDto): Promise<PrivateSaleSubmission> {
     const year = new Date().getFullYear();
@@ -16,7 +20,7 @@ export class PrivateSaleSubmissionsService {
     });
     const submissionId = `PSS-${year}-${String(count + 1).padStart(3, '0')}`;
 
-    return this.prisma.privateSaleSubmission.create({
+    const submission = await this.prisma.privateSaleSubmission.create({
       data: {
         submissionId,
         fullName: dto.fullName,
@@ -33,6 +37,16 @@ export class PrivateSaleSubmissionsService {
         notes: dto.notes || '',
       },
     });
+
+    this.emailService.privateSaleConfirmation({
+      email: submission.email,
+      fullName: submission.fullName,
+      submissionId: submission.submissionId,
+      amount: submission.amount,
+      paymentMethod: submission.paymentMethod,
+    });
+
+    return submission;
   }
 
   async findAll(filters: FilterPrivateSaleSubmissionsDto): Promise<{

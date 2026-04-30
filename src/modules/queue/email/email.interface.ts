@@ -48,3 +48,11 @@ export interface BOX_MINT_INTERFACE {
   fullname: string;
   url: string;
 }
+
+export interface PRIVATE_SALE_CONFIRMATION_INTERFACE {
+  email: string;
+  fullName: string;
+  submissionId: string;
+  amount: number;
+  paymentMethod: string;
+}
