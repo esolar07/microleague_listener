@@ -1,7 +1,5 @@
 import { Injectable } from "@nestjs/common";
 import { MailerService } from "@nestjs-modules/mailer";
-import * as fs from "fs";
-import * as path from "path";
 import {
   RECEIVE_BID_INTERFACE,
   SEND_BID_INTERFACE,
@@ -11,8 +9,6 @@ import {
   PRIVATE_SALE_CONFIRMATION_INTERFACE,
 } from "./email.interface";
 import { APP_NAME, EMAIL_TEMPLATE_DIR } from "src/constants/general.constants";
-
-const LOGO_PATH = path.join(process.cwd(), "static", "logo.png");
 
 @Injectable()
 export class EmailQueueService {
@@ -168,8 +164,6 @@ export class EmailQueueService {
   }
 
   async privateSaleConfirmation(data: PRIVATE_SALE_CONFIRMATION_INTERFACE): Promise<void> {
-    const logoContent = fs.existsSync(LOGO_PATH) ? fs.readFileSync(LOGO_PATH) : null;
-
     this.mailerService
       .sendMail({
         from: `"MicroLeague" <${process.env.MAIL_FROM_EMAIL || 'no-reply@mail.temoc.io'}>`,
@@ -177,9 +171,6 @@ export class EmailQueueService {
         subject: `MicroLeague | Private Sale Submission Received – ${data.submissionId}`,
         text: `Hi ${data.fullName}, your private sale submission (${data.submissionId}) for $${data.amount} has been received and is pending review.`,
         template: EMAIL_TEMPLATE_DIR + '/PrivateSaleConfirmation',
-        attachments: logoContent
-          ? [{ filename: 'logo.png', content: logoContent, cid: 'logo', contentType: 'image/png' }]
-          : [],
         context: {
           fullName: data.fullName,
           submissionId: data.submissionId,
