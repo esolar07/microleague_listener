@@ -43,7 +43,7 @@ export class PrivateSaleSubmissionsService {
       fullName: submission.fullName,
       submissionId: submission.submissionId,
       amount: submission.amount,
-      paymentMethod: submission.paymentMethod,
+      paymentMethod: submission.paymentMethod ?? 'N/A',
     });
 
     return submission;

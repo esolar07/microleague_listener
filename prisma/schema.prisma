@@ -659,10 +659,10 @@ model PrivateSaleSubmission {
   country          String
   walletAddress    String
   amount           Float
-  paymentMethod    String
-  transactionRef   String
+  paymentMethod    String?
+  transactionRef   String?
   paymentReference String?
-  proofUrl         String
+  proofUrl         String?
   proofFileName    String?
   notes            String                      @default("")
   status           PrivateSaleSubmissionStatus @default(Pending)

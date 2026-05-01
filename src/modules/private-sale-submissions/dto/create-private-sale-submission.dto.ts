@@ -21,18 +21,21 @@ export class CreatePrivateSaleSubmissionDto {
   @IsNumber()
   amount: number;
 
+  @IsOptional()
   @IsString()
-  paymentMethod: string;
+  paymentMethod?: string;
 
+  @IsOptional()
   @IsString()
-  transactionRef: string;
+  transactionRef?: string;
 
   @IsOptional()
   @IsString()
   paymentReference?: string;
 
+  @IsOptional()
   @IsString()
-  proofUrl: string;
+  proofUrl?: string;
 
   @IsOptional()
   @IsString()
