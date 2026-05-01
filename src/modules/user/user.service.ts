@@ -60,7 +60,7 @@ export class UserService {
     stats: any;
   }> {
     const { search, page = 1, limit = 10 } = filters;
-    const where: any = {};
+    const where: any = { tokensPurchased: { gt: 0 } };
 
     if (search) {
       where.walletAddress = { contains: search, mode: "insensitive" };
@@ -103,15 +103,18 @@ export class UserService {
 
   async getTopBuyers(limit: number = 5): Promise<PresaleUser[]> {
     return this.prisma.presaleUser.findMany({
+      where: { tokensPurchased: { gt: 0 } },
       orderBy: { tokensPurchased: "desc" },
       take: limit,
     });
   }
 
   async getStats(): Promise<any> {
+    const hasPurchased = { tokensPurchased: { gt: 0 } };
     const [totalBuyers, aggregates] = await Promise.all([
-      this.prisma.presaleUser.count(),
+      this.prisma.presaleUser.count({ where: hasPurchased }),
       this.prisma.presaleUser.aggregate({
+        where: hasPurchased,
         _sum: { amountSpent: true, tokensPurchased: true, claimed: true, unclaimed: true },
         _avg: { amountSpent: true },
       }),
