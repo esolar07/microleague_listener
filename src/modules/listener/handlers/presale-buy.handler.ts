@@ -135,15 +135,15 @@ export class PresaleBuyHandler extends BaseEventHandler {
         releaseIntervalSeconds = Number(stage.releaseInterval);
         tokenPrice = weiToEth4(stage.price);
 
-        // Recalculate USD from token price whenever stage price is available.
-        if (tokenPrice > 0) {
-          const computedUsd = Number((tokens * tokenPrice).toFixed(6));
-          if (Math.abs(computedUsd - usdAmount) > 0.00001) {
-            this.logger.debug(
-              `Recalculating usdAmount from price: tokens=${tokens}, tokenPrice=${tokenPrice}, originalUsd=${usdAmount}, computedUsd=${computedUsd}`,
-            );
-          }
-          usdAmount = computedUsd;
+        // For regular purchases usdValue comes from the payment (correct).
+        // For admin allocations (adminAddPurchase) usdValue is the actual amount
+        // the buyer paid, passed explicitly by the admin — trust it directly and
+        // skip the stage-price recalculation so the SAFT certificate is accurate.
+        if (usdAmount === 0 && tokenPrice > 0) {
+          usdAmount = Number((tokens * tokenPrice).toFixed(6));
+          this.logger.debug(
+            `usdValue=0 in event, falling back to stage price: tokens=${tokens}, tokenPrice=${tokenPrice}, usdAmount=${usdAmount}`,
+          );
         }
       } catch (err: Error | any) {
         this.logger.warn(`Could not read stage data for vesting info: ${err.message}`);

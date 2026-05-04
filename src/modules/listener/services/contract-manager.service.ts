@@ -51,13 +51,13 @@ export class ContractManagerService {
       const lastProcessedBlock = await this.getLastProcessedBlock(
         config.contractAddress
       );
-      // Bug fix: always resume from where we left off (lastProcessedBlock from DB).
-      // Only fall back to config.startBlock when this contract has never been processed before.
-      // The previous logic was inverted: it reset to the deployment block on every restart
-      // whenever lastProcessedBlock was higher, causing full re-scans each boot.
-      const effectiveStartBlock = lastProcessedBlock > 0
-        ? lastProcessedBlock          // Resume from DB checkpoint
-        : (config.startBlock || 0);   // First run: start from deployment block
+      // Resume from the DB checkpoint, but never go below config.startBlock.
+      // This handles redeployments: if startBlock was raised (new contract or new deployment),
+      // we skip stale DB checkpoints that predate the new deployment block.
+      const configStart = config.startBlock || 0;
+      const effectiveStartBlock = lastProcessedBlock > configStart
+        ? lastProcessedBlock   // Resume from checkpoint (further ahead than config)
+        : configStart;         // First run or new deployment: start from config startBlock
 
       const contractInstance: ContractInstance = {
         contract,
@@ -217,9 +217,16 @@ export class ContractManagerService {
             this.logger.error(`[HISTORICAL] Error processing ${eventConfig.eventName} for ${config.contractName}: ${error.message}`, error.stack);
             const errMsg: string = error?.message || String(error);
 
-            // Node doesn't have history for this range — skip it entirely
-            if (errMsg.includes('pruned history unavailable') || errMsg.includes('missing trie node') || errMsg.includes('historical state unavailable')) {
-              consecutivePrunedErrors++;
+            // Node doesn't have history for this range — skip it entirely.
+            // Code 4444 is a definitive "pruned history" signal — jump immediately.
+            // Other missing-state errors count toward 3 consecutive before jumping.
+            const isDefinitivePrune = error?.code === 4444 || errMsg.includes('code": 4444') || errMsg.includes('"code":4444');
+            if (isDefinitivePrune || errMsg.includes('pruned history unavailable') || errMsg.includes('missing trie node') || errMsg.includes('historical state unavailable')) {
+              if (isDefinitivePrune) {
+                consecutivePrunedErrors = 3; // force immediate jump on explicit code 4444
+              } else {
+                consecutivePrunedErrors++;
+              }
 
               // After 3 consecutive pruned batches we are deep in the pruned zone.
               // Crawling 100 blocks at a time through millions of unavailable blocks
@@ -228,11 +235,14 @@ export class ContractManagerService {
                 const PRUNED_SAFE_BUFFER = 50_000;
                 const jumpTarget = Math.max(toBlock + 1, latestBlock - PRUNED_SAFE_BUFFER);
                 this.logger.warn(
-                  `[HISTORICAL] Pruned zone detected for ${eventConfig.eventName} (${consecutivePrunedErrors} consecutive errors). ` +
+                  `[HISTORICAL] Pruned zone detected for ${eventConfig.eventName} (code 4444 / ${consecutivePrunedErrors} consecutive errors). ` +
                   `Jumping from block ${currentBlock} to ${jumpTarget} to skip unavailable history.`
                 );
                 currentBlock = jumpTarget;
                 consecutivePrunedErrors = 0;
+                // Persist the jump immediately so a restart doesn't re-scan the pruned zone.
+                instance.lastProcessedBlock = jumpTarget - 1;
+                await this.saveLastProcessedBlock(config.contractAddress, jumpTarget - 1);
               } else {
                 this.logger.warn(
                   `[HISTORICAL] Pruned history at blocks ${currentBlock}-${toBlock} for ${eventConfig.eventName}, skipping range`
