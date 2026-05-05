@@ -14,6 +14,7 @@ export class EmailService {
   private readonly MAILGUN_FROM =
     process.env.MAILGUN_FROM || `MicroLeague <noreply@${process.env.MAILGUN_DOMAIN}>`;
   private readonly MAILGUN_BASE_URL = process.env.MAILGUN_BASE_URL || 'https://api.mailgun.net/v3';
+  private readonly EXPLORER_URL = process.env.EXPLORER_URL || 'https://basescan.org';
 
   async sendSAFTCertificate(
     to: string,
@@ -214,7 +215,7 @@ export class EmailService {
                       <tr>
                         <td style="font-size:12px; color:#777;">Transaction Hash</td>
                         <td style="font-size:12px; word-break:break-all;">
-                          <a href="https://etherscan.io/tx/${txHash}" target="_blank" style="color:#667eea; text-decoration:underline;">
+                          <a href="${this.EXPLORER_URL}/tx/${txHash}" target="_blank" style="color:#667eea; text-decoration:underline;">
     ${txHash}
                           </a>
                         </td>

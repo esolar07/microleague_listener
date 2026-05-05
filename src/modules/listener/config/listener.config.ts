@@ -25,7 +25,7 @@ export const LISTENER_CONFIG: ContractEventConfig[] = [
     contractAddress: process.env.PRESALE_CONTRACT || '',
     contractName: 'PRESALE_CONTRACT',
     abi: PRESALE_ABI,
-    network: 'ethereum',
+    network: 'base',
     enabled: true,
     startBlock: Number(process.env.PRESALE_START_BLOCK || '41055307'),
     events: [
@@ -56,7 +56,7 @@ export const LISTENER_CONFIG: ContractEventConfig[] = [
     contractAddress: '0x28b34c9CC6E3635B538CEfD71B60C93eAdb2c04c',
     contractName: 'MyToken',
     abi: [], // ERC20_ABI
-    network: 'ethereum',
+    network: 'base',
     enabled: false,
     startBlock: 40759127,
     events: [

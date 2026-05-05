@@ -6,6 +6,7 @@ type IBuyEmail = {
   proofFileUrl: string;
   txHash: string;
   tokens: string;
+  explorerUrl?: string;
 };
 
 export const paymentVerifiedEmail = ({
@@ -16,6 +17,7 @@ export const paymentVerifiedEmail = ({
   proofFileUrl,
   txHash,
   tokens,
+  explorerUrl,
 }: IBuyEmail) => `<html lang="en">
     <head>
       <meta charset="UTF-8" />
@@ -76,7 +78,7 @@ export const paymentVerifiedEmail = ({
             <li><strong>FGF Tokens Purchased:</strong> ${tokens} FGF</li>
           <li>
                     <strong>Transaction:</strong>
-                    <a href="https://basescan.org/tx/${txHash}" target="_blank">
+                    <a href="${explorerUrl ?? 'https://basescan.org'}/tx/${txHash}" target="_blank">
                       (View on Blockchain Explorer)
                     </a>
                   </li>
